@@ -9,6 +9,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.13.0
+      - key: APP_URL
+        sync: false
       - key: NEXT_PUBLIC_APP_URL
         sync: false
       - key: PAYPAL_ENVIRONMENT
@@ -31,5 +33,3 @@ services:
         value: "false"
       - key: DATABASE_PATH
         value: ./data/spendguard.db
-      - key: MOCK_PAYPAL_CAPTURE
-        value: "false"

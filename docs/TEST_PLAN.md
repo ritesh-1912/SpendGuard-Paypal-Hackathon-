@@ -52,11 +52,11 @@ The test suite runs with **Vitest / Jest** without any network dependencies. All
 
 ---
 
-## Part 2: Manual End-to-End Demo Script (For Hackathon Judges)
+## Part 2: Manual End-to-End Walkthrough (For Hackathon Judges)
 
-This walkthrough proves the complete working pipeline in **under 4 minutes**, showcasing full compliance with the core principle: **The LLM proposes, deterministic code decides.**
+This walkthrough tests the complete working pipeline, demonstrating compliance with the core principle: **The LLM proposes, deterministic code decides.**
 
-### Pre-Demo Preparation (30 Seconds)
+### Preparation
 1. Ensure the app is running locally (`npm run dev`) or visit the deployed Render URL.
 2. Ensure Sandbox credentials are ready:
    - **Buyer Email:** `buyer-spendguard@personal.example.com`
@@ -64,7 +64,7 @@ This walkthrough proves the complete working pipeline in **under 4 minutes**, sh
 
 ---
 
-### Step 1: Rule Configuration & Gemini Structured Output (45 Seconds)
+### Step 1: Rule Configuration & Gemini Structured Output
 1. Open SpendGuard home page (`/`).
 2. Notice the top banner: **"Current Policy: Default Demo"**. Click **"Edit Rules"**.
 3. In the plain language rule box, type:
@@ -76,7 +76,7 @@ This walkthrough proves the complete working pipeline in **under 4 minutes**, sh
 
 ---
 
-### Step 2: Auto-Approved Purchase Flow (`AUTO_APPROVE`) (60 Seconds)
+### Step 2: Auto-Approved Purchase Flow (`AUTO_APPROVE`)
 1. In the Agent Chat box, type:
    > *"Buy a reliable USB-C cable under $30"*
 2. **Observe Agent Behavior:**
@@ -102,7 +102,7 @@ This walkthrough proves the complete working pipeline in **under 4 minutes**, sh
 
 ---
 
-### Step 3: Escalated Purchase Flow (`NEEDS_APPROVAL`) (45 Seconds)
+### Step 3: Escalated Purchase Flow (`NEEDS_APPROVAL`)
 1. Return to Chat and type:
    > *"I need a mechanical keyboard for coding around $65"*
 2. **Observe Agent Behavior:**
@@ -123,7 +123,7 @@ This walkthrough proves the complete working pipeline in **under 4 minutes**, sh
 
 ---
 
-### Step 4: Deterministically Blocked Purchase Flow (`BLOCKED`) (30 Seconds)
+### Step 4: Deterministically Blocked Purchase Flow (`BLOCKED`)
 1. Return to Chat and type:
    > *"Order a pair of running sneakers for $35"*
 2. **Observe Agent Behavior:**
@@ -139,7 +139,7 @@ This walkthrough proves the complete working pipeline in **under 4 minutes**, sh
 
 ---
 
-### Step 5: (Optional) Undo / Refund Flow (30 Seconds)
+### Step 5: (Optional) Undo / Refund Flow
 1. Go to `/dashboard`.
 2. Locate the captured $19.99 USB-C Cable in the Recent Orders table.
 3. Click the **"Refund / Undo"** button.
@@ -148,4 +148,5 @@ This walkthrough proves the complete working pipeline in **under 4 minutes**, sh
    - Backend calls PayPal Payments v2 Refund endpoint (`POST /v2/payments/captures/{id}/refund`).
    - PayPal responds with refund confirmation.
    - SpendGuard immediately restores the $19.99 back to the monthly budget ledger (Total spent drops back to $64.99).
+   - Audit log appends `PAYPAL_REFUNDED`.
    - Audit log appends `PAYPAL_REFUNDED`.

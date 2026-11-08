@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     const existingOrder = getOrderByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
       if (existingOrder.paypal_order_id && (existingOrder.status === "CREATED" || existingOrder.status === "APPROVED")) {
-        const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || existingOrder.paypal_order_id.startsWith("MOCK_ORDER_");
+        const isProduction = process.env.NODE_ENV === "production";
+        const isMock = !isProduction && (process.env.MOCK_PAYPAL_CAPTURE === "true" || existingOrder.paypal_order_id.startsWith("MOCK_ORDER_"));
         const appUrl = getAppUrl();
         const approveUrl = isMock
           ? `${appUrl}/checkout/success?token=${existingOrder.paypal_order_id}&mock=true`

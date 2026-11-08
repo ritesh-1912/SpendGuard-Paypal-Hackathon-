@@ -21,7 +21,8 @@ export async function POST(
 
     // Idempotency: If this pending order already has an active PayPal order, return it without creating another
     if (order.paypal_order_id && order.status === "CREATED") {
-      const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || order.paypal_order_id.startsWith("MOCK_ORDER_");
+      const isProduction = process.env.NODE_ENV === "production";
+      const isMock = !isProduction && (process.env.MOCK_PAYPAL_CAPTURE === "true" || order.paypal_order_id.startsWith("MOCK_ORDER_"));
       const appUrl = getAppUrl();
       const approveUrl = isMock
         ? `${appUrl}/checkout/success?token=${order.paypal_order_id}&mock=true`

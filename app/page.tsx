@@ -277,6 +277,11 @@ export default function HomePage() {
                               <span className="font-medium text-zinc-100 max-w-[200px] truncate" title={order.product_title}>
                                 {order.product_title}
                               </span>
+                              {order.product_id?.startsWith("prod_") && (
+                                <span className="text-[9px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700 px-1 py-0.2 rounded">
+                                  Sample
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="py-2.5 text-zinc-400 font-mono text-[11px]">

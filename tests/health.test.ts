@@ -25,4 +25,17 @@ describe("Health Check API Route (/api/health)", () => {
     assert.ok(data.services.channel3);
     assert.equal(data.services.channel3.status, "offline_sample_catalog");
   });
+
+  it("never includes secrets or sensitive credentials in health output", async () => {
+    process.env.PAYPAL_CLIENT_SECRET = "super_secret_paypal_key_xyz";
+    process.env.GEMINI_API_KEY = "super_secret_gemini_key_123";
+    process.env.CHANNEL3_API_KEY = "super_secret_channel3_key_456";
+
+    const response = await GET();
+    const rawText = await response.text();
+
+    assert.ok(!rawText.includes("super_secret_paypal_key_xyz"));
+    assert.ok(!rawText.includes("super_secret_gemini_key_123"));
+    assert.ok(!rawText.includes("super_secret_channel3_key_456"));
+  });
 });

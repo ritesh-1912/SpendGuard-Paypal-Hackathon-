@@ -30,7 +30,8 @@ function getBaseUrl(): string {
 }
 
 export async function createPayPalOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
-  const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true";
+  const isProduction = process.env.NODE_ENV === "production";
+  const isMock = !isProduction && (process.env.MOCK_PAYPAL_CAPTURE === "true" || process.env.NODE_ENV === "test");
   const appUrl = getAppUrl();
 
   const returnUrl = params.returnUrl || `${appUrl}/checkout/success`;
@@ -109,7 +110,8 @@ export async function createPayPalOrder(params: CreateOrderParams): Promise<Crea
 }
 
 export async function capturePayPalOrder(paypalOrderId: string): Promise<CaptureOrderResult> {
-  const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || paypalOrderId.startsWith("MOCK_ORDER_");
+  const isProduction = process.env.NODE_ENV === "production";
+  const isMock = !isProduction && (process.env.MOCK_PAYPAL_CAPTURE === "true" || paypalOrderId.startsWith("MOCK_ORDER_"));
 
   if (isMock) {
     const mockCaptureId = `MOCK_CAP_${paypalOrderId}`;

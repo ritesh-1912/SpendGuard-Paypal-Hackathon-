@@ -23,18 +23,19 @@ export async function GET() {
     } else {
       services.database = {
         status: "unreachable",
-        error: "Unexpected query result",
+        error: "Database check failed",
       };
     }
-  } catch (err: any) {
+  } catch {
     services.database = {
       status: "unreachable",
-      error: err.message || "Database connection failed",
+      error: "Database connection failed",
     };
   }
 
   // 2. PayPal Reachability Check
-  const isMockPayPal = process.env.MOCK_PAYPAL_CAPTURE === "true";
+  const isProduction = process.env.NODE_ENV === "production";
+  const isMockPayPal = !isProduction && process.env.MOCK_PAYPAL_CAPTURE === "true";
   const paypalStart = Date.now();
 
   if (isMockPayPal) {
@@ -45,7 +46,7 @@ export async function GET() {
   } else if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
     services.paypal = {
       status: "unconfigured",
-      error: "PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET is missing",
+      error: "PayPal credentials not configured",
     };
   } else {
     try {
@@ -53,13 +54,13 @@ export async function GET() {
       const paypalLatency = Date.now() - paypalStart;
       services.paypal = {
         status: "reachable",
-        environment: process.env.PAYPAL_ENVIRONMENT || "sandbox",
+        environment: process.env.PAYPAL_ENVIRONMENT === "live" ? "live" : "sandbox",
         latencyMs: paypalLatency,
       };
-    } catch (err: any) {
+    } catch {
       services.paypal = {
         status: "unreachable",
-        error: err.message || "Failed to authenticate with PayPal",
+        error: "PayPal authentication failed",
       };
     }
   }
@@ -71,12 +72,11 @@ export async function GET() {
   if (isOfflineDemo) {
     services.channel3 = {
       status: "offline_sample_catalog",
-      note: "DEMO_OFFLINE=true",
     };
   } else if (!process.env.CHANNEL3_API_KEY) {
     services.channel3 = {
       status: "unconfigured",
-      error: "CHANNEL3_API_KEY is not set",
+      error: "Channel3 API key not configured",
     };
   } else {
     try {
@@ -105,10 +105,10 @@ export async function GET() {
           latencyMs: ch3Latency,
         };
       }
-    } catch (err: any) {
+    } catch {
       services.channel3 = {
         status: "unreachable",
-        error: err.message || "Failed to reach Channel3 API",
+        error: "Channel3 API unreachable",
       };
     }
   }
@@ -126,13 +126,29 @@ export async function GET() {
 
   const statusCode = isDbHealthy ? 200 : 503;
 
-  return NextResponse.json(
-    {
-      status: overallStatus,
-      timestamp,
-      version: "0.1.0",
-      services,
-    },
-    { status: statusCode }
-  );
+  const payload = {
+    status: overallStatus,
+    timestamp,
+    version: "0.1.0",
+    services,
+  };
+
+  // Redaction safeguard: ensure no env values or secrets leak into output
+  const sensitiveValues = [
+    process.env.PAYPAL_CLIENT_SECRET,
+    process.env.PAYPAL_CLIENT_ID,
+    process.env.GEMINI_API_KEY,
+    process.env.CHANNEL3_API_KEY,
+    process.env.PAYPAL_WEBHOOK_ID,
+  ].filter((v): v is string => Boolean(v && v.trim().length > 3));
+
+  let serialized = JSON.stringify(payload);
+  for (const secret of sensitiveValues) {
+    serialized = serialized.replaceAll(secret, "[REDACTED]");
+  }
+
+  return new NextResponse(serialized, {
+    status: statusCode,
+    headers: { "Content-Type": "application/json" },
+  });
 }

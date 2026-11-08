@@ -15,7 +15,7 @@ SpendGuard runs as a Node.js web service on Render:
 Render free-tier instances run on ephemeral containers that reset their local filesystems on redeployment or restart. SpendGuard handles this automatically:
 - When the database file does not exist, `lib/db/index.ts` automatically runs `initializeSchema()` and `seedDemoData()`.
 - The database is immediately initialized with a working default policy ($150/month, ask above $40), an active budget ledger, sample past transactions, and baseline audit logs.
-- The demo environment is always functional upon deployment without manual intervention.
+- The application is immediately operational upon deployment without manual database migration scripts.
 
 ---
 
@@ -26,7 +26,7 @@ Render automatically detects the included `render.yaml` specification:
 
 1. Push this repository to GitHub.
 2. In the [Render Dashboard](https://dashboard.render.com), click **New** > **Blueprint**.
-3. Connect your repository. Render will parse `render.yaml` and prompt for sensitive environment variables.
+3. Connect your repository. Render will parse `render.yaml` and prompt for required environment variables.
 4. Fill in the required environment variables (see table below) and click **Apply**.
 
 ### Option B: Manual Web Service Setup
@@ -49,18 +49,22 @@ Render automatically detects the included `render.yaml` specification:
 | Variable | Required | Description | Example / Default |
 | :--- | :--- | :--- | :--- |
 | `NODE_VERSION` | Yes | Node.js version | `22.13.0` |
-| `NEXT_PUBLIC_APP_URL` | Yes | Public HTTPS URL of the deployed application | `https://spendguard.onrender.com` |
+| `APP_URL` | Recommended | Server-side runtime URL used for PayPal checkout redirects. Evaluated dynamically at runtime without Next.js build-time inlining. | `https://spendguard.onrender.com` |
+| `NEXT_PUBLIC_APP_URL` | Yes | Public HTTPS URL for client-side links (falls back to `APP_URL` or Render's `RENDER_EXTERNAL_URL`). | `https://spendguard.onrender.com` |
 | `PAYPAL_ENVIRONMENT` | Yes | PayPal environment mode | `sandbox` |
 | `PAYPAL_CLIENT_ID` | Yes | PayPal REST app client ID | From PayPal Developer Dashboard |
 | `PAYPAL_CLIENT_SECRET` | Yes | PayPal REST app client secret | From PayPal Developer Dashboard |
 | `PAYPAL_WEBHOOK_ID` | Post-deploy | Webhook ID generated after URL registration | Leave blank initially; add after Step 4 |
-| `GEMINI_API_KEY` | Conditional | Google Gemini API key (required if `DEMO_OFFLINE=false`) | From Google AI Studio |
+| `GEMINI_API_KEY` | Conditional | Google Gemini API key (required in production unless `ALLOW_OFFLINE_IN_PROD=true`) | From Google AI Studio |
 | `GEMINI_MODEL` | No | Gemini model name | `gemini-2.5-flash` |
-| `CHANNEL3_API_KEY` | Conditional | Channel3 product search API key | From trychannel3.com |
+| `CHANNEL3_API_KEY` | Conditional | Channel3 product search API key (required in production unless `ALLOW_OFFLINE_IN_PROD=true`) | From trychannel3.com |
 | `CHANNEL3_BASE_URL` | No | Channel3 API base endpoint | `https://api.trychannel3.com/v1` |
-| `DEMO_OFFLINE` | No | Enable curated sample catalog if API keys are omitted | `false` (set `true` for offline mode) |
+| `DEMO_OFFLINE` | No | Gate offline fallback catalog. Fails at startup in production unless `ALLOW_OFFLINE_IN_PROD=true`. | `false` |
+| `ALLOW_OFFLINE_IN_PROD` | No | Explicit override to permit offline catalog in production. | `false` |
 | `DATABASE_PATH` | No | SQLite database file location | `./data/spendguard.db` |
-| `MOCK_PAYPAL_CAPTURE`| No | Mock sandbox checkout without live PayPal API | `false` |
+
+> [!IMPORTANT]
+> `MOCK_PAYPAL_CAPTURE` is strictly forbidden in production. If set to `true` when `NODE_ENV=production`, the application will fail at startup to prevent simulated transactions in live environments.
 
 ---
 
@@ -104,7 +108,7 @@ Check the boxes for the following events:
    ```bash
    curl https://<your-service-name>.onrender.com/api/health
    ```
-   Verify that `status` returns `"healthy"` and all services (database, PayPal, Channel3) are reachable.
+   Verify that `status` returns `"healthy"` and that no secret keys or credentials are exposed in the JSON response.
 
 2. **Policy Configuration:**
    Navigate to the **Policy** tab and verify the default active spending rules render.
