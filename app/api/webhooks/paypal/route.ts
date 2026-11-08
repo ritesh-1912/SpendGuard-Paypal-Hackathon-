@@ -56,7 +56,18 @@ export async function POST(req: NextRequest) {
 
       if (orderId) {
         const order = getOrderByPayPalOrderId(orderId);
-        if (order && order.status !== "CAPTURED") {
+        if (order) {
+          if (order.status === "CAPTURED") {
+            logAuditEvent(
+              "WEBHOOK_DUPLICATE_IGNORED",
+              `Duplicate capture webhook ignored for '${order.product_title}' (${captureId})`,
+              { orderId: order.id, captureId, transmissionId },
+              "INFO",
+              order.id
+            );
+            return NextResponse.json({ status: "success", duplicate: true, received: true, eventType });
+          }
+
           updateOrder(order.id, {
             status: "CAPTURED",
             paypal_capture_id: captureId,
@@ -67,7 +78,9 @@ export async function POST(req: NextRequest) {
           logAuditEvent(
             "WEBHOOK_CAPTURE_SYNC",
             `Webhook synced capture for '${order.product_title}' ($${order.product_price.toFixed(2)})`,
-            { orderId: order.id, captureId, amount }
+            { orderId: order.id, captureId, amount },
+            "INFO",
+            order.id
           );
         }
       }
@@ -79,6 +92,17 @@ export async function POST(req: NextRequest) {
       const order = db.prepare("SELECT * FROM orders WHERE paypal_capture_id = ?").get(captureId) as any;
 
       if (order) {
+        if (order.status === "REFUNDED") {
+          logAuditEvent(
+            "WEBHOOK_DUPLICATE_IGNORED",
+            `Duplicate refund webhook ignored for '${order.product_title}' (${captureId})`,
+            { orderId: order.id, captureId, transmissionId },
+            "INFO",
+            order.id
+          );
+          return NextResponse.json({ status: "success", duplicate: true, received: true, eventType });
+        }
+
         updateOrder(order.id, {
           status: "REFUNDED",
           refunded_at: new Date().toISOString(),
@@ -88,7 +112,9 @@ export async function POST(req: NextRequest) {
         logAuditEvent(
           "WEBHOOK_REFUND_SYNC",
           `Webhook synced refund of $${refundAmount.toFixed(2)} for '${order.product_title}'`,
-          { orderId: order.id, captureId, refundAmount }
+          { orderId: order.id, captureId, refundAmount },
+          "INFO",
+          order.id
         );
       }
     }

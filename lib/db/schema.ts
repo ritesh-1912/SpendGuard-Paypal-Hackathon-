@@ -3,6 +3,7 @@ import { Policy } from "../policy/types";
 
 export interface OrderRecord {
   id: string;
+  idempotency_key?: string | null;
   user_id: string;
   paypal_order_id: string | null;
   paypal_capture_id: string | null;
@@ -17,7 +18,7 @@ export interface OrderRecord {
   decision: "AUTO_APPROVE" | "NEEDS_APPROVAL" | "BLOCKED";
   decision_reason: string;
   rule_fired: string | null;
-  status: "PROPOSED" | "PENDING_APPROVAL" | "APPROVED" | "CREATED" | "CAPTURED" | "REFUNDED" | "REJECTED";
+  status: "PROPOSED" | "PENDING_APPROVAL" | "APPROVED" | "CREATED" | "CAPTURED" | "REFUNDED" | "REJECTED" | "CANCELLED" | "FAILED";
   created_at: string;
   captured_at: string | null;
   refunded_at: string | null;
@@ -109,12 +110,13 @@ export function insertOrder(order: Omit<OrderRecord, "created_at" | "captured_at
   const db = getDb();
   db.prepare(`
     INSERT INTO orders (
-      id, user_id, paypal_order_id, paypal_capture_id, product_id, product_title,
+      id, idempotency_key, user_id, paypal_order_id, paypal_capture_id, product_id, product_title,
       product_price, currency, category, merchant, product_url, product_image_url,
       decision, decision_reason, rule_fired, status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `).run(
     order.id,
+    order.idempotency_key || null,
     order.user_id,
     order.paypal_order_id,
     order.paypal_capture_id,
@@ -161,6 +163,13 @@ export function getOrderById(id: string): OrderRecord | null {
 export function getOrderByPayPalOrderId(paypalOrderId: string): OrderRecord | null {
   const db = getDb();
   const row = db.prepare("SELECT * FROM orders WHERE paypal_order_id = ?").get(paypalOrderId) as any;
+  if (!row) return null;
+  return { ...row, product_price: Number(row.product_price) };
+}
+
+export function getOrderByIdempotencyKey(key: string): OrderRecord | null {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM orders WHERE idempotency_key = ?").get(key) as any;
   if (!row) return null;
   return { ...row, product_price: Number(row.product_price) };
 }

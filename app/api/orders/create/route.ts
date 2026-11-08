@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActivePolicy, getCurrentBudgetLedger, getRecentOrders, insertOrder, updateOrder, logAuditEvent } from "@/lib/db/schema";
+import { 
+  getActivePolicy, 
+  getCurrentBudgetLedger, 
+  getRecentOrders, 
+  insertOrder, 
+  updateOrder, 
+  getOrderByIdempotencyKey,
+  logAuditEvent 
+} from "@/lib/db/schema";
 import { evaluatePurchaseProposal } from "@/lib/policy/engine";
 import { createPayPalOrder } from "@/lib/paypal/orders";
 import { PurchaseProposal } from "@/lib/policy/types";
@@ -9,9 +17,39 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const proposal = body.proposal as PurchaseProposal;
     const userConfirmed = Boolean(body.userConfirmed);
+    const idempotencyKey = body.idempotencyKey || `prop_${proposal?.productId}_${proposal?.price}`;
 
     if (!proposal || !proposal.price || !proposal.productId) {
       return NextResponse.json({ error: "Invalid product proposal payload" }, { status: 400 });
+    }
+
+    // Idempotency: Return existing order if identical request was already created
+    const existingOrder = getOrderByIdempotencyKey(idempotencyKey);
+    if (existingOrder) {
+      if (existingOrder.paypal_order_id && (existingOrder.status === "CREATED" || existingOrder.status === "APPROVED")) {
+        const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || existingOrder.paypal_order_id.startsWith("MOCK_ORDER_");
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const approveUrl = isMock
+          ? `${appUrl}/checkout/success?token=${existingOrder.paypal_order_id}&mock=true`
+          : `https://www.sandbox.paypal.com/checkoutnow?token=${existingOrder.paypal_order_id}`;
+
+        return NextResponse.json({
+          success: true,
+          orderId: existingOrder.id,
+          paypalOrderId: existingOrder.paypal_order_id,
+          approveUrl,
+          idempotent: true,
+        });
+      }
+
+      if (existingOrder.status === "PENDING_APPROVAL") {
+        return NextResponse.json({
+          success: true,
+          needsApproval: true,
+          orderId: existingOrder.id,
+          idempotent: true,
+        });
+      }
     }
 
     const activePolicy = getActivePolicy();
@@ -22,13 +60,12 @@ export async function POST(req: NextRequest) {
     const ledger = getCurrentBudgetLedger();
     const recentOrders = getRecentOrders(activePolicy.policy.allowDuplicatesWithinDays || 7);
 
-    // Deterministic gate: LLM proposes, code decides!
+    // Deterministic gate: LLM proposes, pure code decides!
     const evaluation = evaluatePurchaseProposal(proposal, activePolicy.policy, {
       currentMonthSpent: ledger.total_spent,
       recentOrders,
     });
 
-    // 1. BLOCKED: Never call PayPal!
     if (evaluation.decision === "BLOCKED") {
       logAuditEvent(
         "ORDER_REJECTED",
@@ -45,12 +82,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. NEEDS_APPROVAL: If user hasn't explicitly approved, return status for confirmation
     const internalOrderId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     if (evaluation.decision === "NEEDS_APPROVAL" && !userConfirmed) {
       insertOrder({
         id: internalOrderId,
+        idempotency_key: idempotencyKey,
         user_id: "demo_user",
         paypal_order_id: null,
         paypal_capture_id: null,
@@ -71,7 +108,7 @@ export async function POST(req: NextRequest) {
       logAuditEvent(
         "ORDER_ESCALATED",
         `Purchase of '${proposal.productTitle}' ($${proposal.price}) requires user approval: ${evaluation.reason}`,
-        { internalOrderId, proposal, evaluation },
+        { internalOrderId, proposal, evaluation, idempotencyKey },
         "INFO",
         internalOrderId
       );
@@ -85,11 +122,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. AUTO_APPROVE or User Confirmed: Stage order and create PayPal sandbox order
-    const initialStatus = evaluation.decision === "AUTO_APPROVE" ? "APPROVED" : "APPROVED";
+    const initialStatus = "APPROVED";
 
     insertOrder({
       id: internalOrderId,
+      idempotency_key: idempotencyKey,
       user_id: "demo_user",
       paypal_order_id: null,
       paypal_capture_id: null,
@@ -107,12 +144,12 @@ export async function POST(req: NextRequest) {
       status: initialStatus,
     });
 
-    // Create PayPal order
     const paypalOrder = await createPayPalOrder({
       internalOrderId,
       title: proposal.productTitle,
       amount: proposal.price,
       currency: proposal.currency,
+      idempotencyKey,
     });
 
     updateOrder(internalOrderId, {
@@ -123,7 +160,7 @@ export async function POST(req: NextRequest) {
     logAuditEvent(
       "PAYPAL_ORDER_CREATED",
       `Created PayPal Sandbox order ${paypalOrder.paypalOrderId} for '${proposal.productTitle}' ($${proposal.price})`,
-      { internalOrderId, paypalOrderId: paypalOrder.paypalOrderId, approveUrl: paypalOrder.approveUrl },
+      { internalOrderId, paypalOrderId: paypalOrder.paypalOrderId, approveUrl: paypalOrder.approveUrl, idempotencyKey },
       "INFO",
       internalOrderId
     );

@@ -1,6 +1,7 @@
 import { CatalogProduct } from "./types";
+import { logAuditEvent } from "@/lib/db/schema";
 
-const FALLBACK_CATALOG: CatalogProduct[] = [
+const SAMPLE_CATALOG: CatalogProduct[] = [
   {
     id: "prod_hub_8in1",
     title: "Pro Series 8-in-1 Multiport USB-C Hub (4K HDMI, 100W PD)",
@@ -10,7 +11,8 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "techdirect.store",
     url: "https://techdirect.store/products/usbc-hub-8in1",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
   {
     id: "prod_cable_usbc",
@@ -21,7 +23,8 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "hardwarecentral.shop",
     url: "https://hardwarecentral.shop/products/usbc-cable-6ft",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
   {
     id: "prod_kb_mechanical",
@@ -32,7 +35,8 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "keyboardforge.io",
     url: "https://keyboardforge.io/products/tkl-mechanical-kb",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
   {
     id: "prod_book_data_systems",
@@ -43,7 +47,8 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "bookvault.press",
     url: "https://bookvault.press/titles/scalable-data-systems",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
   {
     id: "prod_headphones_studio",
@@ -54,7 +59,8 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "audiomaster.store",
     url: "https://audiomaster.store/products/studio-wireless-anc",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
   {
     id: "prod_shoes_running",
@@ -65,7 +71,8 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "athleticsdirect.shop",
     url: "https://athleticsdirect.shop/products/lightweight-running-shoes",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
   {
     id: "prod_multitool_gadget",
@@ -76,59 +83,105 @@ const FALLBACK_CATALOG: CatalogProduct[] = [
     merchant: "gadgethaven.com",
     url: "https://gadgethaven.com/products/pocket-multitool",
     availability: "InStock",
-    source: "channel3_catalog",
+    source: "channel3_sample",
+    isSample: true,
   },
 ];
 
 export async function searchProducts(query: string, maxPrice?: number): Promise<CatalogProduct[]> {
+  const isOfflineDemo = process.env.DEMO_OFFLINE === "true";
   const apiKey = process.env.CHANNEL3_API_KEY;
   const baseUrl = process.env.CHANNEL3_BASE_URL || "https://api.trychannel3.com/v1";
 
-  if (apiKey && apiKey.trim() !== "") {
+  if (!isOfflineDemo) {
+    if (!apiKey || apiKey.trim() === "") {
+      const errMsg = "CHANNEL3_API_KEY is not configured. Set CHANNEL3_API_KEY or enable DEMO_OFFLINE=true.";
+      logAuditEvent(
+        "CATALOG_SEARCH_FAILED",
+        errMsg,
+        { query, error: "MISSING_API_KEY" },
+        "WARN"
+      );
+      throw new Error(errMsg);
+    }
+
     try {
       const response = await fetch(`${baseUrl}/search`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
+          "Authorization": `Bearer ${apiKey.trim()}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(8000),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const products = data.products || [];
-
-        const mapped: CatalogProduct[] = [];
-        for (const p of products) {
-          const offer = p.offers?.[0];
-          const priceAmount = offer?.price?.amount ? Number(offer.price.amount) : 0;
-          if (priceAmount <= 0) continue;
-
-          mapped.push({
-            id: p.id || `ch3_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            title: p.title || "Product",
-            price: priceAmount,
-            currency: offer?.price?.currency || "USD",
-            category: inferCategory(p.title || ""),
-            merchant: offer?.domain || "merchant.shop",
-            url: offer?.url || "https://trychannel3.com",
-            availability: offer?.availability || "InStock",
-            source: "channel3_live",
-          });
-        }
-
-        if (mapped.length > 0) {
-          return maxPrice ? mapped.filter((p) => p.price <= maxPrice) : mapped;
-        }
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => "");
+        const errMsg = `Channel3 search failed with status ${response.status}: ${response.statusText || errorBody || "Request error"}`;
+        logAuditEvent(
+          "CATALOG_SEARCH_FAILED",
+          errMsg,
+          { query, status: response.status, errorBody },
+          "WARN"
+        );
+        throw new Error(errMsg);
       }
-    } catch {
-      // Fall back to local catalog if network request fails
+
+      const data = await response.json();
+      const products = data.products || [];
+
+      const mapped: CatalogProduct[] = [];
+      for (const p of products) {
+        const offer = p.offers?.[0];
+        const priceAmount = offer?.price?.amount ? Number(offer.price.amount) : 0;
+        if (priceAmount <= 0) continue;
+
+        mapped.push({
+          id: p.id || `ch3_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          title: p.title || "Product",
+          price: priceAmount,
+          currency: offer?.price?.currency || "USD",
+          category: inferCategory(p.title || ""),
+          merchant: offer?.domain || "merchant.shop",
+          url: offer?.url || "https://trychannel3.com",
+          availability: offer?.availability || "InStock",
+          source: "channel3_live",
+          isSample: false,
+        });
+      }
+
+      return maxPrice !== undefined ? mapped.filter((p) => p.price <= maxPrice) : mapped;
+    } catch (err: any) {
+      if (err.name === "TimeoutError") {
+        const errMsg = "Channel3 API timed out after 8 seconds. Please try again.";
+        logAuditEvent(
+          "CATALOG_SEARCH_FAILED",
+          errMsg,
+          { query, error: "TIMEOUT" },
+          "WARN"
+        );
+        throw new Error(errMsg);
+      }
+
+      if (!err.message?.startsWith("Channel3 search failed")) {
+        const errMsg = `Channel3 network error: ${err.message || "Failed to reach catalog service"}`;
+        logAuditEvent(
+          "CATALOG_SEARCH_FAILED",
+          errMsg,
+          { query, error: err.message },
+          "WARN"
+        );
+        throw new Error(errMsg);
+      }
+
+      throw err;
     }
   }
 
+  // DEMO_OFFLINE=true fallback catalog with explicit sample indicators
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  let results = FALLBACK_CATALOG.filter((item) => {
+  let results = SAMPLE_CATALOG.filter((item) => {
     const haystack = `${item.title} ${item.category} ${item.merchant}`.toLowerCase();
     return terms.some((term) => haystack.includes(term));
   });
@@ -136,17 +189,17 @@ export async function searchProducts(query: string, maxPrice?: number): Promise<
   if (results.length === 0) {
     const lower = query.toLowerCase();
     if (/hub|usb|cable/i.test(lower)) {
-      results = FALLBACK_CATALOG.filter((p) => /hub|cable/i.test(p.title));
+      results = SAMPLE_CATALOG.filter((p) => /hub|cable/i.test(p.title));
     } else if (/keyboard/i.test(lower)) {
-      results = FALLBACK_CATALOG.filter((p) => /keyboard/i.test(p.title));
+      results = SAMPLE_CATALOG.filter((p) => /keyboard/i.test(p.title));
     } else if (/book|guide/i.test(lower)) {
-      results = FALLBACK_CATALOG.filter((p) => /book|guide/i.test(p.title));
+      results = SAMPLE_CATALOG.filter((p) => /book|guide/i.test(p.title));
     } else if (/headphone|audio/i.test(lower)) {
-      results = FALLBACK_CATALOG.filter((p) => /headphone/i.test(p.title));
+      results = SAMPLE_CATALOG.filter((p) => /headphone/i.test(p.title));
     } else if (/shoes|sneaker|runner/i.test(lower)) {
-      results = FALLBACK_CATALOG.filter((p) => /shoes/i.test(p.title));
+      results = SAMPLE_CATALOG.filter((p) => /shoes/i.test(p.title));
     } else {
-      results = FALLBACK_CATALOG.slice(0, 4);
+      results = SAMPLE_CATALOG.slice(0, 4);
     }
   }
 

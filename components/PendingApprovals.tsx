@@ -113,6 +113,7 @@ export default function PendingApprovals({
           {pendingOrders.map((order) => {
             const isProcessing = loadingId === order.id;
             const checkoutSession = activeApproveUrl?.id === order.id ? activeApproveUrl.url : null;
+            const isSample = order.product_id?.startsWith("prod_");
 
             return (
               <div
@@ -131,6 +132,11 @@ export default function PendingApprovals({
                         <span className="text-[10px] text-zinc-400">
                           {order.category}
                         </span>
+                        {isSample && (
+                          <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded">
+                            Sample data
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-sm font-medium text-zinc-100 truncate mt-0.5">
                         {order.product_title}

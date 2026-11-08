@@ -96,17 +96,18 @@ MOCK_PAYPAL_CAPTURE="false"
 ```
 
 #### Option B: Offline Demo Mode (No API Keys Required)
-To run the full flow without sandbox keys:
+To run the full flow with offline sample catalog and mock checkout:
 ```bash
+DEMO_OFFLINE="true"
 MOCK_PAYPAL_CAPTURE="true"
 ```
 
 ### Step 3: Run the Test Suite
-Run the 25 unit tests covering all policy boundary conditions:
+Run the 38 unit tests covering policy rules, startup validation, idempotency, failure cases, and health checks:
 ```bash
 npm test
 ```
-All 25 tests pass in under 200ms.
+All 38 tests pass in under 300ms.
 
 ### Step 4: Start the Application
 ```bash
@@ -221,6 +222,33 @@ npm run seed
    - `CHECKOUT.ORDER.APPROVED`
 5. Copy the **Webhook ID** into Render environment variables as `PAYPAL_WEBHOOK_ID`.
 6. Webhook payloads are verified server-side via PayPal's `POST /v1/notifications/verify-webhook-signature` endpoint.
+
+---
+
+## Health Monitoring
+
+A read-only health endpoint is available at `/api/health` to monitor service connectivity:
+- **Database:** Executes a test query against SQLite with latency measurement.
+- **PayPal Auth:** Validates client credentials against the PayPal sandbox OAuth endpoint.
+- **Channel3:** Verifies API reachability and key authorization.
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Example response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-11-08T16:30:00.000Z",
+  "version": "0.1.0",
+  "services": {
+    "database": { "status": "reachable", "latencyMs": 1 },
+    "paypal": { "status": "reachable", "environment": "sandbox", "latencyMs": 142 },
+    "channel3": { "status": "reachable", "latencyMs": 85 }
+  }
+}
+```
 
 ---
 

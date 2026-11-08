@@ -5,11 +5,8 @@ import {
   ShieldCheck, 
   ShieldAlert, 
   AlertTriangle, 
-  CreditCard, 
-  CheckCircle2, 
   ExternalLink, 
-  Lock,
-  Tag
+  Lock
 } from "lucide-react";
 import { PurchaseProposal, EvaluationResult } from "@/lib/policy/types";
 import ProductIcon from "./ProductIcon";
@@ -44,6 +41,7 @@ export default function ApprovalCard({
         body: JSON.stringify({
           proposal,
           userConfirmed,
+          idempotencyKey: `proposal_${proposal.productId}_${proposal.price}`,
         }),
       });
 
@@ -93,6 +91,11 @@ export default function ApprovalCard({
               <span>{proposal.merchantDomain}</span>
               <span>/</span>
               <span className="capitalize">{proposal.category}</span>
+              {proposal.isSample && (
+                <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded">
+                  Sample data
+                </span>
+              )}
             </div>
             <h4 className="text-sm font-medium text-zinc-100 truncate mt-0.5" title={proposal.productTitle}>
               {proposal.productTitle}

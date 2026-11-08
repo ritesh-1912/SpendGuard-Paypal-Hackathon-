@@ -8,6 +8,7 @@ export interface CreateOrderParams {
   currency?: string;
   returnUrl?: string;
   cancelUrl?: string;
+  idempotencyKey?: string;
 }
 
 export interface CreateOrderResult {
@@ -35,7 +36,7 @@ export async function createPayPalOrder(params: CreateOrderParams): Promise<Crea
   const cancelUrl = params.cancelUrl || `${appUrl}/checkout/cancel`;
 
   if (isMock) {
-    const mockId = `MOCK_ORDER_${Date.now()}`;
+    const mockId = `MOCK_ORDER_${params.internalOrderId}`;
     return {
       paypalOrderId: mockId,
       approveUrl: `${returnUrl}?token=${mockId}&mock=true`,
@@ -67,40 +68,50 @@ export async function createPayPalOrder(params: CreateOrderParams): Promise<Crea
     },
   };
 
-  const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "PayPal-Request-Id": `spendguard_${params.internalOrderId}_${Date.now()}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  const idempotencyHeader = params.idempotencyKey || `spendguard_${params.internalOrderId}`;
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Failed to create PayPal order (${response.status}): ${errText}`);
+  try {
+    const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": idempotencyHeader,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to create PayPal order (${response.status}): ${errText}`);
+    }
+
+    const orderData = (await response.json()) as PayPalOrderResponse;
+    const approveLink = orderData.links.find((l) => l.rel === "approve");
+
+    if (!approveLink) {
+      throw new Error("PayPal created the order but did not return an approval link.");
+    }
+
+    return {
+      paypalOrderId: orderData.id,
+      approveUrl: approveLink.href,
+      status: orderData.status,
+    };
+  } catch (err: any) {
+    if (err.name === "TimeoutError") {
+      throw new Error("PayPal API timed out after 10 seconds while creating order. Please try again.");
+    }
+    throw err;
   }
-
-  const orderData = (await response.json()) as PayPalOrderResponse;
-  const approveLink = orderData.links.find((l) => l.rel === "approve");
-
-  if (!approveLink) {
-    throw new Error("PayPal created the order but did not return an approval link.");
-  }
-
-  return {
-    paypalOrderId: orderData.id,
-    approveUrl: approveLink.href,
-    status: orderData.status,
-  };
 }
 
 export async function capturePayPalOrder(paypalOrderId: string): Promise<CaptureOrderResult> {
   const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || paypalOrderId.startsWith("MOCK_ORDER_");
 
   if (isMock) {
-    const mockCaptureId = `MOCK_CAP_${Date.now()}`;
+    const mockCaptureId = `MOCK_CAP_${paypalOrderId}`;
     return {
       captureId: mockCaptureId,
       status: "COMPLETED",
@@ -114,28 +125,36 @@ export async function capturePayPalOrder(paypalOrderId: string): Promise<Capture
   const token = await getPayPalAccessToken();
   const baseUrl = getBaseUrl();
 
-  const response = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "PayPal-Request-Id": `capture_${paypalOrderId}_${Date.now()}`,
-    },
-    body: JSON.stringify({}),
-  });
+  try {
+    const response = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": `capture_${paypalOrderId}`,
+      },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(10000),
+    });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Failed to capture PayPal order ${paypalOrderId} (${response.status}): ${errText}`);
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to capture PayPal order ${paypalOrderId} (${response.status}): ${errText}`);
+    }
+
+    const captureData = (await response.json()) as PayPalCaptureResponse;
+    const captureItem = captureData.purchase_units?.[0]?.payments?.captures?.[0];
+    const captureId = captureItem?.id || captureData.id;
+
+    return {
+      captureId: captureId,
+      status: captureData.status,
+      rawResponse: captureData,
+    };
+  } catch (err: any) {
+    if (err.name === "TimeoutError") {
+      throw new Error("PayPal API timed out after 10 seconds while capturing payment. Please try again.");
+    }
+    throw err;
   }
-
-  const captureData = (await response.json()) as PayPalCaptureResponse;
-  const captureItem = captureData.purchase_units?.[0]?.payments?.captures?.[0];
-  const captureId = captureItem?.id || captureData.id;
-
-  return {
-    captureId: captureId,
-    status: captureData.status,
-    rawResponse: captureData,
-  };
 }

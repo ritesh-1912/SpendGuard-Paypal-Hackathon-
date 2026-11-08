@@ -8,5 +8,6 @@ export interface CatalogProduct {
   url: string;
   imageUrl?: string;
   availability: string;
-  source: "channel3_live" | "channel3_catalog";
+  source: "channel3_live" | "channel3_catalog" | "channel3_sample";
+  isSample?: boolean;
 }

@@ -20,6 +20,7 @@ export interface PurchaseProposal {
   merchantDomain: string;
   productUrl: string;
   imageUrl?: string;
+  isSample?: boolean;
 }
 
 export type PolicyDecision = "AUTO_APPROVE" | "NEEDS_APPROVAL" | "BLOCKED";

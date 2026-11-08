@@ -131,6 +131,7 @@ Rules:
             merchantDomain: candidate.merchant,
             productUrl: candidate.url,
             imageUrl: candidate.imageUrl,
+            isSample: candidate.isSample,
           };
 
           const evaluation = evaluatePurchaseProposal(proposal, activePolicy, {
@@ -167,8 +168,10 @@ Rules:
         evaluation: null,
         toolsUsed,
       };
-    } catch {
-      // Fall back to deterministic catalog matching if API call fails
+    } catch (err: any) {
+      if (err.message?.includes("Channel3")) {
+        throw err;
+      }
     }
   }
 
@@ -194,6 +197,7 @@ Rules:
     merchantDomain: candidate.merchant,
     productUrl: candidate.url,
     imageUrl: candidate.imageUrl,
+    isSample: candidate.isSample,
   };
 
   const evaluation = evaluatePurchaseProposal(proposal, activePolicy, {

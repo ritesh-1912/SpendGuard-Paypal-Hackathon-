@@ -19,6 +19,8 @@ export function getDb(): DatabaseSync {
   }
 
   const db = new DatabaseSync(resolvedPath);
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA busy_timeout = 5000;");
   db.exec("PRAGMA foreign_keys = ON;");
   
   initializeSchema(db);
@@ -42,6 +44,7 @@ function initializeSchema(db: DatabaseSync) {
 
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
+      idempotency_key TEXT,
       user_id TEXT NOT NULL DEFAULT 'demo_user',
       paypal_order_id TEXT,
       paypal_capture_id TEXT,
@@ -80,4 +83,16 @@ function initializeSchema(db: DatabaseSync) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  try {
+    db.exec("ALTER TABLE orders ADD COLUMN idempotency_key TEXT;");
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency_key ON orders(idempotency_key) WHERE idempotency_key IS NOT NULL;");
+  } catch {
+    // Index already exists
+  }
 }

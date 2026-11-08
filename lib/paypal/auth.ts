@@ -25,25 +25,33 @@ export async function getPayPalAccessToken(): Promise<string> {
 
   const authHeader = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
 
-  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${authHeader}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
+  try {
+    const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${authHeader}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+      signal: AbortSignal.timeout(8000),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `PayPal authentication failed with status ${response.status}. Check PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET: ${errorText}`
-    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `PayPal authentication failed with status ${response.status}. Check PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET: ${errorText}`
+      );
+    }
+
+    const data = (await response.json()) as PayPalOAuthResponse;
+    cachedToken = data.access_token;
+    tokenExpiresAt = Date.now() + data.expires_in * 1000;
+
+    return cachedToken;
+  } catch (err: any) {
+    if (err.name === "TimeoutError") {
+      throw new Error("PayPal authentication timed out after 8 seconds. Please check your network connection.");
+    }
+    throw err;
   }
-
-  const data = (await response.json()) as PayPalOAuthResponse;
-  cachedToken = data.access_token;
-  tokenExpiresAt = Date.now() + data.expires_in * 1000;
-
-  return cachedToken;
 }

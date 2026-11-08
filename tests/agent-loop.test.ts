@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+
+process.env.DEMO_OFFLINE = "true";
+
 import { runShoppingAgentLoop } from "../lib/agent/coordinator";
 import { getDb } from "../lib/db";
 
