@@ -3,25 +3,31 @@
 import React, { useState, useEffect } from "react";
 import { 
   ShieldCheck, 
-  ShieldAlert, 
-  AlertTriangle, 
-  Search, 
-  ExternalLink, 
-  CheckCircle2, 
+  Bot, 
+  BarChart3, 
   Clock, 
-  ArrowRight, 
-  CreditCard,
+  SlidersHorizontal, 
   RefreshCw,
-  Sparkles,
-  Bot,
-  SlidersHorizontal
+  Search,
+  ExternalLink,
+  CreditCard,
+  AlertTriangle,
+  PackageCheck
 } from "lucide-react";
-import { CatalogProduct } from "@/lib/catalog/types";
-import { Policy, EvaluationResult } from "@/lib/policy/types";
-import PolicyConfirmationModal from "@/components/PolicyConfirmationModal";
+import { Policy } from "@/lib/policy/types";
+import { OrderRecord, AuditLogRecord } from "@/lib/db/schema";
 import AgentChat from "@/components/AgentChat";
+import BudgetWidget from "@/components/BudgetWidget";
+import PendingApprovals from "@/components/PendingApprovals";
+import AuditLogViewer from "@/components/AuditLogViewer";
+import PolicyStudio from "@/components/PolicyStudio";
+import ApprovalCard from "@/components/ApprovalCard";
+import ProductIcon from "@/components/ProductIcon";
+import { CatalogProduct } from "@/lib/catalog/types";
 
 export default function HomePage() {
+  const [activeTab, setActiveTab] = useState<"chat" | "dashboard" | "audit" | "policy">("chat");
+
   const [budget, setBudget] = useState<{ limit: number; spent: number; remaining: number }>({
     limit: 150,
     spent: 0,
@@ -29,35 +35,22 @@ export default function HomePage() {
   });
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [rawRules, setRawRules] = useState<string>("");
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [recentOrders, setRecentOrders] = useState<OrderRecord[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<OrderRecord[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // View Mode: "agent" (Gemini function calling) or "catalog" (direct search)
-  const [activeTab, setActiveTab] = useState<"agent" | "catalog">("agent");
-
-  // Policy Modal state
-  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
-
-  // Search state for catalog view
-  const [searchQuery, setSearchQuery] = useState("USB-C hub");
-  const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-
-  // Selected item & evaluation state for catalog view
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
-  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-
-  // PayPal order creation state
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [orderError, setOrderError] = useState<string | null>(null);
+  // Manual catalog test state for Dashboard
+  const [catalogQuery, setCatalogQuery] = useState("USB-C hub");
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState<CatalogProduct | null>(null);
+  const [manualEvaluation, setManualEvaluation] = useState<any>(null);
 
   useEffect(() => {
-    fetchMetrics();
-    handleSearch("USB-C hub");
+    fetchDashboardData();
   }, []);
 
-  async function fetchMetrics() {
+  async function fetchDashboardData() {
     try {
       const res = await fetch("/api/dashboard/metrics");
       const data = await res.json();
@@ -65,192 +58,153 @@ export default function HomePage() {
         setBudget(data.budget);
         setPolicy(data.policy);
         setRawRules(data.rawRules);
+        setRecentOrders(data.recentOrders || []);
+        setPendingOrders(data.pendingOrders || []);
         setAuditLogs(data.auditLogs || []);
       }
     } catch (err) {
-      console.error("Error fetching metrics:", err);
+      console.error("Dashboard data fetch error:", err);
+    } finally {
+      setIsLoading(false);
     }
   }
 
-  async function handleSearch(queryToSearch: string) {
-    setIsSearching(true);
-    setSearchQuery(queryToSearch);
-    setSelectedProduct(null);
-    setEvaluation(null);
-    setCheckoutUrl(null);
-    setOrderError(null);
+  async function handleSearchCatalog(query: string) {
+    setCatalogQuery(query);
+    setSelectedCatalogItem(null);
+    setManualEvaluation(null);
 
     try {
       const res = await fetch("/api/catalog/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: queryToSearch }),
+        body: JSON.stringify({ query }),
       });
       const data = await res.json();
       if (data.success) {
-        setProducts(data.products || []);
+        setCatalogProducts(data.products || []);
       }
     } catch (err) {
-      console.error("Search error:", err);
-    } finally {
-      setIsSearching(false);
+      console.error("Catalog search error:", err);
     }
   }
 
-  async function handleSelectProduct(prod: CatalogProduct) {
-    setSelectedProduct(prod);
-    setIsEvaluating(true);
-    setEvaluation(null);
-    setCheckoutUrl(null);
-    setOrderError(null);
+  async function handleEvaluateCatalogItem(item: CatalogProduct) {
+    setSelectedCatalogItem(item);
+    setManualEvaluation(null);
 
     try {
       const res = await fetch("/api/orders/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: prod.id,
-          productTitle: prod.title,
-          price: prod.price,
-          currency: prod.currency,
-          category: prod.category,
-          merchantDomain: prod.merchant,
-          productUrl: prod.url,
-          imageUrl: prod.imageUrl,
+          productId: item.id,
+          productTitle: item.title,
+          price: item.price,
+          currency: item.currency,
+          category: item.category,
+          merchantDomain: item.merchant,
+          productUrl: item.url,
         }),
       });
-
       const data = await res.json();
       if (data.success) {
-        setEvaluation(data.evaluation);
-      } else {
-        setOrderError(data.error || "Evaluation failed");
+        setManualEvaluation(data.evaluation);
       }
-    } catch (err: any) {
-      setOrderError(err.message || "Failed to evaluate product");
-    } finally {
-      setIsEvaluating(false);
+    } catch (err) {
+      console.error("Catalog item evaluate error:", err);
     }
   }
-
-  async function handleCreatePayPalOrder(userConfirmed = false) {
-    if (!selectedProduct) return;
-
-    setIsCreatingOrder(true);
-    setOrderError(null);
-
-    try {
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proposal: {
-            productId: selectedProduct.id,
-            productTitle: selectedProduct.title,
-            price: selectedProduct.price,
-            currency: selectedProduct.currency,
-            category: selectedProduct.category,
-            merchantDomain: selectedProduct.merchant,
-            productUrl: selectedProduct.url,
-            imageUrl: selectedProduct.imageUrl,
-          },
-          userConfirmed,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setOrderError(data.error || "Order creation rejected");
-        return;
-      }
-
-      if (data.approveUrl) {
-        setCheckoutUrl(data.approveUrl);
-      }
-      fetchMetrics();
-    } catch (err: any) {
-      setOrderError(err.message || "Failed to initiate PayPal order");
-    } finally {
-      setIsCreatingOrder(false);
-    }
-  }
-
-  function handlePolicyUpdated(newPolicy: Policy, newRawRules: string) {
-    setPolicy(newPolicy);
-    setRawRules(newRawRules);
-    fetchMetrics();
-  }
-
-  const spendPercent = Math.min(100, Math.round((budget.spent / budget.limit) * 100));
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Policy Confirmation Modal */}
-      <PolicyConfirmationModal
-        isOpen={isPolicyModalOpen}
-        onClose={() => setIsPolicyModalOpen(false)}
-        onPolicyConfirmed={handlePolicyUpdated}
-        currentRawRules={rawRules}
-      />
-
-      {/* Top Banner Navigation */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-6 py-4">
+    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+      
+      {/* Top Header Navbar */}
+      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-400/30">
               <ShieldCheck className="h-6 w-6 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white tracking-tight">SpendGuard</h1>
-                <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-medium">
+                <span className="text-lg font-bold text-white tracking-tight">SpendGuard</span>
+                <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-mono font-bold">
                   PayPal AI Hackathon
                 </span>
               </div>
-              <p className="text-xs text-slate-400">The LLM proposes, deterministic code decides.</p>
+              <p className="text-[11px] text-slate-400">The LLM proposes, deterministic code decides.</p>
             </div>
           </div>
 
-          {/* Budget Widget & Rules Edit */}
-          <div className="flex items-center gap-4">
+          {/* Tab Navigation Navigation Pills */}
+          <div className="flex items-center gap-1.5 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
             <button
-              onClick={() => setIsPolicyModalOpen(true)}
-              className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+              onClick={() => setActiveTab("chat")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                activeTab === "chat"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
             >
-              <SlidersHorizontal className="h-3.5 w-3.5 text-blue-400" />
-              Configure Rules with Gemini
+              <Bot className="h-3.5 w-3.5" />
+              Agent Chat
             </button>
+            <button
+              onClick={() => setActiveTab("dashboard")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                activeTab === "dashboard"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Dashboard
+              {pendingOrders.length > 0 && (
+                <span className="bg-amber-500 text-slate-950 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
+                  {pendingOrders.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("policy")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                activeTab === "policy"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Policy Studio
+            </button>
+            <button
+              onClick={() => setActiveTab("audit")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                activeTab === "audit"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Audit Trail
+            </button>
+          </div>
 
-            <div className="flex items-center gap-6 bg-slate-950/60 border border-slate-800 rounded-xl px-5 py-2.5">
-              <div>
-                <div className="text-xs font-medium text-slate-400">Monthly Budget (Sandbox)</div>
-                <div className="text-base font-bold text-white">
-                  ${budget.spent.toFixed(2)}{" "}
-                  <span className="text-xs font-normal text-slate-400">/ ${budget.limit.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="w-28">
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-500 ${
-                      spendPercent > 85 ? "bg-red-500" : spendPercent > 60 ? "bg-amber-500" : "bg-emerald-500"
-                    }`}
-                    style={{ width: `${spendPercent}%` }}
-                  />
-                </div>
-                <div className="text-[10px] text-right text-slate-400 mt-1">
-                  ${budget.remaining.toFixed(2)} remaining
-                </div>
-              </div>
-              <button 
-                onClick={fetchMetrics} 
-                title="Refresh metrics"
-                className="text-slate-400 hover:text-white transition p-1"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
+          {/* Quick Stats Pill */}
+          <div className="hidden lg:flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-2xl px-4 py-2 text-xs">
+            <div className="flex flex-col text-right">
+              <span className="text-[10px] text-slate-400 font-medium">Monthly Cap</span>
+              <span className="font-bold text-white font-mono">${budget.spent.toFixed(2)} / ${budget.limit.toFixed(2)}</span>
             </div>
+            <button
+              onClick={fetchDashboardData}
+              title="Refresh live metrics"
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-850 transition"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </header>
@@ -258,383 +212,210 @@ export default function HomePage() {
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-6 py-6 w-full flex-1 space-y-6">
         
-        {/* Active Policy Status Bar */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+        {/* Active Policy Banner */}
+        <div className="bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                Active Confirmed Guardrail Policy
+                Active Guardrail Policy (Ground Truth)
               </span>
-              <span className="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold">
-                ENFORCED
+              <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                ENFORCED BY POLICY ENGINE
               </span>
             </div>
-            <p className="text-xs text-slate-400 italic">
+            <p className="text-xs text-slate-300 italic font-mono text-[11px]">
               "{rawRules || "Max $150/month, electronics and books only, ask me before anything over $40, hard limit $100 per item."}"
             </p>
           </div>
 
           {policy && (
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-              <span className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300">
-                Cap: <strong>${policy.maxMonthlyBudget}</strong>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+              <span className="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl text-slate-200">
+                Cap: <strong className="text-white">${policy.maxMonthlyBudget}</strong>
               </span>
-              <span className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-amber-400">
+              <span className="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl text-amber-400">
                 Ask &gt; <strong>${policy.requireApprovalAbove}</strong>
               </span>
-              <span className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-red-400">
+              <span className="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl text-red-400">
                 Hard Cap: <strong>${policy.maxItemPrice}</strong>
               </span>
-              <span className="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300">
-                Allowed: <strong>{policy.allowedCategories.join(", ")}</strong>
-              </span>
+              <button
+                onClick={() => setActiveTab("policy")}
+                className="text-[11px] text-blue-400 hover:text-blue-300 font-sans font-semibold underline underline-offset-2 ml-1"
+              >
+                Edit in Policy Studio &rarr;
+              </button>
             </div>
           )}
         </div>
 
-        {/* Mode Selector Tabs */}
-        <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-          <button
-            onClick={() => setActiveTab("agent")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === "agent"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
-            }`}
-          >
-            <Bot className="h-4 w-4" />
-            Shopping Agent Chat (Gemini Function Calling)
-          </button>
-          <button
-            onClick={() => setActiveTab("catalog")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === "catalog"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
-            }`}
-          >
-            <Search className="h-4 w-4" />
-            Channel3 Direct Catalog Browser
-          </button>
-        </div>
-
-        {/* TAB 1: Gemini Shopping Agent Chat View */}
-        {activeTab === "agent" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* ========================================================================= */}
+        {/* TAB 1: Shopping Agent Chat Mode                                           */}
+        {/* ========================================================================= */}
+        {activeTab === "chat" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Agent Chat Feed (8 Cols) */}
             <div className="lg:col-span-8">
-              <AgentChat onOrderAction={fetchMetrics} />
+              <AgentChat onOrderAction={fetchDashboardData} />
             </div>
 
-            {/* Audit Log Sidebar */}
-            <div className="lg:col-span-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-slate-400" />
-                  Immutable Audit Log
-                </h3>
-                <span className="text-[10px] text-slate-500 font-mono">SQLite</span>
-              </div>
+            {/* Right Side Support Panel (4 Cols): Budget + Pending Approvals Widget */}
+            <div className="lg:col-span-4 space-y-6">
+              <BudgetWidget
+                limit={budget.limit}
+                spent={budget.spent}
+                remaining={budget.remaining}
+                orders={recentOrders}
+              />
 
-              <div className="space-y-2.5 max-h-[550px] overflow-y-auto pr-1 text-xs">
-                {auditLogs.length === 0 ? (
-                  <div className="text-slate-500 text-xs py-8 text-center">No logs recorded yet.</div>
-                ) : (
-                  auditLogs.map((log) => (
-                    <div 
-                      key={log.id} 
-                      className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
-                          log.severity === "WARN" ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"
-                        }`}>
-                          {log.event_type}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {new Date(log.created_at).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="text-slate-200 text-xs font-medium leading-normal">
-                        {log.summary}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              {pendingOrders.length > 0 && (
+                <PendingApprovals
+                  pendingOrders={pendingOrders}
+                  onActionComplete={fetchDashboardData}
+                />
+              )}
             </div>
           </div>
         )}
 
-        {/* TAB 2: Direct Channel3 Catalog Browser */}
-        {activeTab === "catalog" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Catalog Search Column */}
-            <div className="lg:col-span-7 space-y-4">
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold text-white">Channel3 Product Catalog</h2>
-                    <p className="text-xs text-slate-400">Search products to evaluate against your spending guardrail.</p>
-                  </div>
-                  <span className="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
-                    Channel3 API
-                  </span>
-                </div>
+        {/* ========================================================================= */}
+        {/* TAB 2: Full Spending Dashboard Mode                                       */}
+        {/* ========================================================================= */}
+        {activeTab === "dashboard" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Spend vs Budget Summary (6 Cols) */}
+              <div className="lg:col-span-6">
+                <BudgetWidget
+                  limit={budget.limit}
+                  spent={budget.spent}
+                  remaining={budget.remaining}
+                  orders={recentOrders}
+                />
+              </div>
 
-                {/* Preset Pills */}
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="text-slate-400 text-xs self-center mr-1">Presets:</span>
-                  <button 
-                    onClick={() => handleSearch("USB-C hub")}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition"
-                  >
-                    ⚡ Under $40 (Auto-Approve)
-                  </button>
-                  <button 
-                    onClick={() => handleSearch("mechanical keyboard")}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition"
-                  >
-                    ⚠️ $65 Keyboard (Needs-Approval)
-                  </button>
-                  <button 
-                    onClick={() => handleSearch("Sony headphones")}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition"
-                  >
-                    🛑 $348 Headphones (Hard Cap)
-                  </button>
-                  <button 
-                    onClick={() => handleSearch("running shoes")}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition"
-                  >
-                    🛑 Apparel (Category Blocked)
-                  </button>
-                </div>
-
-                {/* Search Bar */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSearch(searchQuery)}
-                      placeholder="Search products..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleSearch(searchQuery)}
-                    disabled={isSearching}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-1.5"
-                  >
-                    {isSearching ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Search"}
-                  </button>
-                </div>
-
-                {/* Items List */}
-                <div className="space-y-3 pt-2">
-                  {products.map((item) => {
-                    const isSelected = selectedProduct?.id === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => handleSelectProduct(item)}
-                        className={`p-3.5 rounded-xl border transition cursor-pointer flex items-center gap-4 ${
-                          isSelected 
-                            ? "bg-blue-950/30 border-blue-500 ring-1 ring-blue-500/50" 
-                            : "bg-slate-950/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/40"
-                        }`}
-                      >
-                        {item.imageUrl ? (
-                          <img 
-                            src={item.imageUrl} 
-                            alt={item.title} 
-                            className="w-14 h-14 object-contain rounded-lg bg-white/5 p-1 flex-shrink-0" 
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-500 font-bold text-xs">
-                            NO IMG
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                              {item.merchant}
-                            </span>
-                            <span className="text-slate-600">•</span>
-                            <span className="text-[11px] text-blue-400 font-medium">
-                              {item.category}
-                            </span>
-                          </div>
-                          <h3 className="text-sm font-medium text-slate-100 truncate mt-0.5">
-                            {item.title}
-                          </h3>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-base font-bold text-white">
-                            ${item.price.toFixed(2)}
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            {item.currency}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {/* Pending Approvals Queue (6 Cols) */}
+              <div className="lg:col-span-6">
+                <PendingApprovals
+                  pendingOrders={pendingOrders}
+                  onActionComplete={fetchDashboardData}
+                />
               </div>
             </div>
 
-            {/* Evaluation & Decision Column */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 sticky top-24">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-amber-400" />
-                    Policy Engine Decision
-                  </h2>
-                  <span className="text-xs text-slate-400 font-mono">Gate</span>
+            {/* Recent Captured Orders Table */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <PackageCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Recent Purchase Orders</h3>
+                    <p className="text-xs text-slate-400">Captured and approved transactions recorded in SQLite.</p>
+                  </div>
                 </div>
-
-                {!selectedProduct ? (
-                  <div className="py-12 text-center text-slate-500 text-sm">
-                    Select any product on the left to test the deterministic policy engine.
-                  </div>
-                ) : isEvaluating ? (
-                  <div className="py-12 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
-                    <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-                    Running deterministic checks...
-                  </div>
-                ) : evaluation ? (
-                  <div className="space-y-4">
-                    <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                      <div className="text-xs text-slate-400">Selected Item:</div>
-                      <div className="text-sm font-semibold text-white truncate mt-0.5">
-                        {selectedProduct.title}
-                      </div>
-                      <div className="text-xs text-slate-300 font-mono mt-1">
-                        ${selectedProduct.price.toFixed(2)} USD • {selectedProduct.category} • {selectedProduct.merchant}
-                      </div>
-                    </div>
-
-                    {evaluation.decision === "AUTO_APPROVE" && (
-                      <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 space-y-2">
-                        <div className="flex items-center gap-2 font-bold text-sm">
-                          <ShieldCheck className="h-5 w-5 text-emerald-400" />
-                          AUTO_APPROVE
-                        </div>
-                        <div className="text-xs text-emerald-200/90 leading-relaxed">
-                          {evaluation.reason}
-                        </div>
-                        <div className="text-[10px] font-mono text-emerald-400/80 pt-1">
-                          Rule: {evaluation.ruleFired}
-                        </div>
-                      </div>
-                    )}
-
-                    {evaluation.decision === "NEEDS_APPROVAL" && (
-                      <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-300 space-y-2">
-                        <div className="flex items-center gap-2 font-bold text-sm">
-                          <AlertTriangle className="h-5 w-5 text-amber-400" />
-                          NEEDS_APPROVAL
-                        </div>
-                        <div className="text-xs text-amber-200/90 leading-relaxed">
-                          {evaluation.reason}
-                        </div>
-                        <div className="text-[10px] font-mono text-amber-400/80 pt-1">
-                          Rule: {evaluation.ruleFired}
-                        </div>
-                      </div>
-                    )}
-
-                    {evaluation.decision === "BLOCKED" && (
-                      <div className="p-4 rounded-xl bg-red-950/30 border border-red-500/40 text-red-300 space-y-2">
-                        <div className="flex items-center gap-2 font-bold text-sm">
-                          <ShieldAlert className="h-5 w-5 text-red-400" />
-                          BLOCKED BY POLICY
-                        </div>
-                        <div className="text-xs text-red-200/90 leading-relaxed">
-                          {evaluation.reason}
-                        </div>
-                        <div className="text-[10px] font-mono text-red-400/80 pt-1">
-                          Rule: {evaluation.ruleFired}
-                        </div>
-                        <p className="text-[11px] text-red-400 italic pt-1">
-                          * PayPal API locked. Zero charges permitted.
-                        </p>
-                      </div>
-                    )}
-
-                    {evaluation.decision === "AUTO_APPROVE" && (
-                      <div className="pt-2">
-                        {!checkoutUrl ? (
-                          <button
-                            onClick={() => handleCreatePayPalOrder(false)}
-                            disabled={isCreatingOrder}
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                          >
-                            {isCreatingOrder ? (
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <CreditCard className="h-4 w-4" />
-                                Create PayPal Sandbox Order (${selectedProduct.price.toFixed(2)})
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <a
-                            href={checkoutUrl}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 animate-pulse"
-                          >
-                            Pay with PayPal Sandbox
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-                      </div>
-                    )}
-
-                    {evaluation.decision === "NEEDS_APPROVAL" && (
-                      <div className="pt-2">
-                        {!checkoutUrl ? (
-                          <button
-                            onClick={() => handleCreatePayPalOrder(true)}
-                            disabled={isCreatingOrder}
-                            className="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20"
-                          >
-                            {isCreatingOrder ? (
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <CheckCircle2 className="h-4 w-4" />
-                                Approve & Pay with PayPal Sandbox (${selectedProduct.price.toFixed(2)})
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <a
-                            href={checkoutUrl}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 animate-pulse"
-                          >
-                            Complete Sandbox Approval
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-                      </div>
-                    )}
-
-                    {orderError && (
-                      <div className="p-3 rounded-lg bg-red-950/60 border border-red-800 text-xs text-red-300">
-                        {orderError}
-                      </div>
-                    )}
-                  </div>
-                ) : null}
+                <span className="text-xs text-slate-400 font-mono">
+                  {recentOrders.length} orders
+                </span>
               </div>
+
+              {recentOrders.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 text-xs">
+                  No orders have been recorded yet. Use the Agent Chat to purchase products.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase text-[10px]">
+                        <th className="pb-3 font-semibold">Item & Category</th>
+                        <th className="pb-3 font-semibold">Merchant</th>
+                        <th className="pb-3 font-semibold">Price</th>
+                        <th className="pb-3 font-semibold">Decision</th>
+                        <th className="pb-3 font-semibold">Status</th>
+                        <th className="pb-3 font-semibold">PayPal Capture ID</th>
+                        <th className="pb-3 font-semibold text-right">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {recentOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-slate-950/40 transition">
+                          <td className="py-3 pr-3">
+                            <div className="flex items-center gap-2.5">
+                              <ProductIcon category={order.category} title={order.product_title} size="sm" />
+                              <span className="font-semibold text-white max-w-[200px] truncate" title={order.product_title}>
+                                {order.product_title}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 text-slate-400 font-mono text-[11px]">
+                            {order.merchant}
+                          </td>
+                          <td className="py-3 font-bold font-mono text-white">
+                            ${order.product_price.toFixed(2)}
+                          </td>
+                          <td className="py-3">
+                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                              order.decision === "AUTO_APPROVE"
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : order.decision === "NEEDS_APPROVAL"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-red-500/10 text-red-400 border border-red-500/20"
+                            }`}>
+                              {order.decision}
+                            </span>
+                          </td>
+                          <td className="py-3 font-mono text-[11px]">
+                            <span className={`px-2 py-0.5 rounded-full ${
+                              order.status === "CAPTURED"
+                                ? "bg-emerald-500/10 text-emerald-400 font-bold"
+                                : order.status === "PENDING_APPROVAL"
+                                ? "bg-amber-500/10 text-amber-400 font-bold"
+                                : "text-slate-400"
+                            }`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="py-3 font-mono text-[11px] text-slate-400 max-w-[140px] truncate">
+                            {order.paypal_capture_id || (order.paypal_order_id ? `Order: ${order.paypal_order_id}` : "—")}
+                          </td>
+                          <td className="py-3 text-slate-500 font-mono text-[10px] text-right">
+                            {new Date(order.created_at).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 3: Side-by-Side Policy Studio Mode                                     */}
+        {/* ========================================================================= */}
+        {activeTab === "policy" && (
+          <PolicyStudio
+            currentPolicy={policy}
+            currentRawRules={rawRules}
+            onPolicyActivated={(newPolicy, newRawRules) => {
+              setPolicy(newPolicy);
+              setRawRules(newRawRules);
+              fetchDashboardData();
+            }}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 4: Full Audit Trail Mode                                              */}
+        {/* ========================================================================= */}
+        {activeTab === "audit" && (
+          <AuditLogViewer logs={auditLogs} />
         )}
 
       </div>
