@@ -19,8 +19,6 @@ export function getDb(): DatabaseSync {
   }
 
   const db = new DatabaseSync(resolvedPath);
-  
-  // Enable foreign keys and WAL mode for reliability
   db.exec("PRAGMA foreign_keys = ON;");
   
   initializeSchema(db);
@@ -82,43 +80,4 @@ function initializeSchema(db: DatabaseSync) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
-}
-
-function seedInitialData(db: DatabaseSync) {
-  // Check if active policy exists
-  const existingPolicy = db.prepare("SELECT id FROM policies WHERE is_active = 1 LIMIT 1").get();
-  
-  if (!existingPolicy) {
-    const defaultPolicy = {
-      version: "1.0",
-      maxMonthlyBudget: 150.00,
-      requireApprovalAbove: 40.00,
-      maxItemPrice: 100.00,
-      allowedCategories: ["electronics", "books"],
-      blockedCategories: ["apparel", "weapons"],
-      allowedMerchants: [],
-      blockedMerchants: ["temu.com", "aliexpress.com"],
-      allowDuplicatesWithinDays: 7,
-      currency: "USD"
-    };
-
-    const rawRules = "Max $150/month, electronics and books only, ask me before anything over $40, hard limit $100 per item, no Temu or AliExpress.";
-
-    db.prepare(`
-      INSERT INTO policies (id, user_id, raw_rules, structured_policy, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 1, datetime('now'), datetime('now'))
-    `).run("policy_default", "demo_user", rawRules, JSON.stringify(defaultPolicy));
-  }
-
-  // Ensure current month budget ledger exists
-  const now = new Date();
-  const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-  const existingLedger = db.prepare("SELECT month_year FROM budget_ledger WHERE month_year = ?").get(currentMonthYear);
-  if (!existingLedger) {
-    db.prepare(`
-      INSERT INTO budget_ledger (month_year, user_id, budget_limit, total_spent, updated_at)
-      VALUES (?, ?, 150.00, 0.0, datetime('now'))
-    `).run(currentMonthYear, "demo_user");
-  }
 }

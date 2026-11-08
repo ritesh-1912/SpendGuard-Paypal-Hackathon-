@@ -8,28 +8,28 @@ export default function CancelPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-6">
-        <div className="h-16 w-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto text-amber-400">
-          <XCircle className="h-10 w-10" />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center space-y-6">
+        <div className="h-12 w-12 bg-amber-950/40 border border-amber-800/60 rounded-full flex items-center justify-center mx-auto text-amber-400">
+          <XCircle className="h-6 w-6" />
         </div>
 
         <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-bold bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
-            Payment Cancelled
+          <span className="text-xs font-mono uppercase tracking-wider text-amber-400 font-medium bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 rounded">
+            Payment cancelled
           </span>
-          <h2 className="text-2xl font-bold text-white mt-3">No Charges Incurred</h2>
-          <p className="text-xs text-slate-400 mt-2">
-            The PayPal Sandbox session was cancelled. Your SpendGuard budget ledger remains unchanged.
+          <h2 className="text-xl font-semibold text-zinc-100 mt-2">No charges incurred</h2>
+          <p className="text-xs text-zinc-400 mt-1">
+            The PayPal sandbox session was cancelled. Your budget balance remains unchanged.
           </p>
         </div>
 
         <button
           onClick={() => router.push("/")}
-          className="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2"
+          className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          Return to SpendGuard
+          Return to dashboard
         </button>
       </div>
     </div>

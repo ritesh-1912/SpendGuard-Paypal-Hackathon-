@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SpendGuard | PayPal AI Guardrail Agent",
-  description: "Deterministic guardrail policy engine for AI shopping agents powered by PayPal Orders v2.",
+  title: "SpendGuard | Policy Engine for AI Shopping",
+  description: "Deterministic guardrail policy engine for AI shopping agents with PayPal checkout.",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
+      <body className="bg-zinc-950 text-zinc-100 antialiased">
         {children}
       </body>
     </html>

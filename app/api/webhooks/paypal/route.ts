@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
     const transmissionTime = req.headers.get("paypal-transmission-time") || "";
     const configuredWebhookId = process.env.PAYPAL_WEBHOOK_ID || "";
 
-    // 1. Verify signature
     const isValid = await verifyPayPalWebhookSignature({
       authAlgo,
       certUrl,
@@ -50,7 +49,6 @@ export async function POST(req: NextRequest) {
       "INFO"
     );
 
-    // 2. Handle specific webhook events
     if (eventType === "PAYMENT.CAPTURE.COMPLETED") {
       const captureId = resource.id;
       const orderId = resource.supplementary_data?.related_ids?.order_id;
@@ -77,7 +75,6 @@ export async function POST(req: NextRequest) {
       const captureId = resource.id;
       const refundAmount = parseFloat(resource.amount?.value || "0");
 
-      // Find order by captureId
       const db = getDb();
       const order = db.prepare("SELECT * FROM orders WHERE paypal_capture_id = ?").get(captureId) as any;
 
@@ -86,7 +83,6 @@ export async function POST(req: NextRequest) {
           status: "REFUNDED",
           refunded_at: new Date().toISOString(),
         });
-        // Reverse spent amount from budget ledger
         updateBudgetSpend(-refundAmount);
 
         logAuditEvent(
@@ -99,7 +95,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ status: "success", received: true, eventType });
   } catch (err: any) {
-    console.error("[PayPal Webhook] Error processing event:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Failed to process webhook" }, { status: 500 });
   }
 }

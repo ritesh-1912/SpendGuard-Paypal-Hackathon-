@@ -8,7 +8,6 @@ import {
   CreditCard, 
   CheckCircle2, 
   ExternalLink, 
-  RefreshCw,
   Lock,
   Tag
 } from "lucide-react";
@@ -50,7 +49,7 @@ export default function ApprovalCard({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Order creation rejected");
+        throw new Error(data.error || "Order creation rejected by policy engine.");
       }
 
       if (data.approveUrl) {
@@ -60,7 +59,7 @@ export default function ApprovalCard({
         }
       }
     } catch (err: any) {
-      setError(err.message || "Failed to create PayPal sandbox order");
+      setError(err.message || "Could not create PayPal order. Check your credentials.");
     } finally {
       setIsCreating(false);
     }
@@ -70,122 +69,108 @@ export default function ApprovalCard({
   const isNeeds = evaluation.decision === "NEEDS_APPROVAL";
   const isBlocked = evaluation.decision === "BLOCKED";
 
-  const cardTheme = isAuto
-    ? "border-emerald-500/30 bg-gradient-to-b from-slate-900/90 to-emerald-950/20"
+  const cardBorder = isAuto
+    ? "border-emerald-900/60 bg-zinc-900"
     : isNeeds
-    ? "border-amber-500/30 bg-gradient-to-b from-slate-900/90 to-amber-950/20"
-    : "border-red-500/30 bg-gradient-to-b from-slate-900/90 to-red-950/20";
+    ? "border-amber-900/60 bg-zinc-900"
+    : "border-red-900/60 bg-zinc-900";
 
-  const badgeTheme = isAuto
-    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+  const statusBadge = isAuto
+    ? "bg-emerald-950 text-emerald-400 border-emerald-800"
     : isNeeds
-    ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-    : "bg-red-500/10 text-red-400 border-red-500/30";
+    ? "bg-amber-950 text-amber-400 border-amber-800"
+    : "bg-red-950 text-red-400 border-red-800";
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-xl space-y-3.5 transition-all ${cardTheme} ${className}`}>
+    <div className={`rounded-xl border p-4 space-y-3 ${cardBorder} ${className}`}>
       
-      {/* Top Meta Bar */}
+      {/* Product Meta */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <ProductIcon category={proposal.category} title={proposal.productTitle} size="md" />
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-                {proposal.merchantDomain}
-              </span>
-              <span className="text-slate-600">•</span>
-              <span className="text-[11px] text-blue-400 font-medium">
-                {proposal.category}
-              </span>
+            <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
+              <span>{proposal.merchantDomain}</span>
+              <span>/</span>
+              <span className="capitalize">{proposal.category}</span>
             </div>
-            <h4 className="text-sm font-bold text-white truncate mt-0.5" title={proposal.productTitle}>
+            <h4 className="text-sm font-medium text-zinc-100 truncate mt-0.5" title={proposal.productTitle}>
               {proposal.productTitle}
             </h4>
           </div>
         </div>
 
         <div className="text-right flex-shrink-0">
-          <div className="text-base font-bold text-white font-mono">
+          <div className="text-sm font-semibold text-zinc-100 font-mono">
             ${proposal.price.toFixed(2)}
           </div>
-          <div className="text-[10px] text-slate-400 font-medium">
+          <div className="text-[10px] text-zinc-400">
             {proposal.currency}
           </div>
         </div>
       </div>
 
-      {/* Decision Banner */}
-      <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${badgeTheme}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 font-bold tracking-tight">
-            {isAuto && <ShieldCheck className="h-4 w-4" />}
-            {isNeeds && <AlertTriangle className="h-4 w-4" />}
-            {isBlocked && <ShieldAlert className="h-4 w-4" />}
+      {/* Decision Block */}
+      <div className={`p-3 rounded-lg border text-xs space-y-1.5 ${statusBadge}`}>
+        <div className="flex items-center justify-between font-mono">
+          <div className="flex items-center gap-1.5 font-semibold text-xs tracking-wide">
+            {isAuto && <ShieldCheck className="h-3.5 w-3.5" />}
+            {isNeeds && <AlertTriangle className="h-3.5 w-3.5" />}
+            {isBlocked && <ShieldAlert className="h-3.5 w-3.5" />}
             <span>{evaluation.decision}</span>
           </div>
-          <span className="text-[10px] font-mono opacity-80 flex items-center gap-1">
-            <Tag className="h-3 w-3" />
+          <span className="text-[10px] opacity-75">
             {evaluation.ruleFired}
           </span>
         </div>
 
-        <p className="text-slate-200 text-xs leading-relaxed pt-0.5">
+        <p className="text-zinc-200 text-xs leading-normal">
           {evaluation.reason}
         </p>
 
         {isBlocked && (
-          <div className="pt-1 text-[11px] text-red-400/90 flex items-center gap-1 font-medium">
-            <Lock className="h-3.5 w-3.5" />
-            <span>Deterministic Gate: PayPal API is strictly locked for this transaction.</span>
+          <div className="pt-0.5 text-[11px] text-red-300 flex items-center gap-1">
+            <Lock className="h-3 w-3" />
+            <span>Purchase blocked. The payment gateway was not contacted.</span>
           </div>
         )}
       </div>
 
-      {/* Action Section */}
+      {/* Action Block */}
       {!isBlocked && (
-        <div className="pt-1">
+        <div>
           {!approveUrl ? (
             <button
               onClick={() => handleProceed(isNeeds)}
               disabled={isCreating}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 ${
+              className={`w-full py-2 px-3 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
                 isAuto
-                  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20"
-                  : "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20"
+                  ? "bg-zinc-100 text-zinc-900 hover:bg-zinc-200"
+                  : "bg-amber-600 text-white hover:bg-amber-500"
               }`}
             >
               {isCreating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Generating PayPal Sandbox Session...
-                </>
+                "Creating order..."
               ) : isAuto ? (
-                <>
-                  <CreditCard className="h-4 w-4" />
-                  Create PayPal Sandbox Order (${proposal.price.toFixed(2)})
-                </>
+                `Create PayPal sandbox order ($${proposal.price.toFixed(2)})`
               ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Approve & Proceed to PayPal Sandbox (${proposal.price.toFixed(2)})
-                </>
+                `Approve and create order ($${proposal.price.toFixed(2)})`
               )}
             </button>
           ) : (
             <a
               href={approveUrl}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 animate-pulse"
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5"
             >
-              <span>Pay with PayPal Sandbox</span>
-              <ExternalLink className="h-4 w-4" />
+              <span>Pay in PayPal sandbox</span>
+              <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
         </div>
       )}
 
       {error && (
-        <div className="p-2.5 rounded-xl bg-red-950/60 border border-red-800 text-[11px] text-red-300">
+        <div className="p-2 rounded-lg bg-red-950/40 border border-red-900 text-xs text-red-300">
           {error}
         </div>
       )}

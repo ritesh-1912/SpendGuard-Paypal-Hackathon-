@@ -5,7 +5,6 @@ let tokenExpiresAt = 0;
 
 export async function getPayPalAccessToken(): Promise<string> {
   const now = Date.now();
-  // Return cached token if valid with 60 second buffer
   if (cachedToken && now < tokenExpiresAt - 60000) {
     return cachedToken;
   }
@@ -15,7 +14,7 @@ export async function getPayPalAccessToken(): Promise<string> {
 
   if (!clientId || !clientSecret) {
     throw new Error(
-      "Missing PayPal Sandbox credentials. Please set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your .env file."
+      "Missing PayPal credentials. Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your .env file."
     );
   }
 
@@ -24,7 +23,6 @@ export async function getPayPalAccessToken(): Promise<string> {
     ? "https://api-m.paypal.com" 
     : "https://api-m.sandbox.paypal.com";
 
-  // Create base64 encoded basic authorization header
   const authHeader = Buffer.from(`${clientId.trim()}:${clientSecret.trim()}`).toString("base64");
 
   const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
@@ -38,9 +36,8 @@ export async function getPayPalAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    // NEVER log secrets or full auth headers
     throw new Error(
-      `PayPal OAuth authentication failed with status ${response.status}. Verify your PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET. Details: ${errorText}`
+      `PayPal authentication failed with status ${response.status}. Check PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET: ${errorText}`
     );
   }
 

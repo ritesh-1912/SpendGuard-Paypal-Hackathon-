@@ -8,10 +8,6 @@ import {
   Clock, 
   SlidersHorizontal, 
   RefreshCw,
-  Search,
-  ExternalLink,
-  CreditCard,
-  AlertTriangle,
   PackageCheck
 } from "lucide-react";
 import { Policy } from "@/lib/policy/types";
@@ -21,9 +17,7 @@ import BudgetWidget from "@/components/BudgetWidget";
 import PendingApprovals from "@/components/PendingApprovals";
 import AuditLogViewer from "@/components/AuditLogViewer";
 import PolicyStudio from "@/components/PolicyStudio";
-import ApprovalCard from "@/components/ApprovalCard";
 import ProductIcon from "@/components/ProductIcon";
-import { CatalogProduct } from "@/lib/catalog/types";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"chat" | "dashboard" | "audit" | "policy">("chat");
@@ -38,13 +32,6 @@ export default function HomePage() {
   const [recentOrders, setRecentOrders] = useState<OrderRecord[]>([]);
   const [pendingOrders, setPendingOrders] = useState<OrderRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Manual catalog test state for Dashboard
-  const [catalogQuery, setCatalogQuery] = useState("USB-C hub");
-  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
-  const [selectedCatalogItem, setSelectedCatalogItem] = useState<CatalogProduct | null>(null);
-  const [manualEvaluation, setManualEvaluation] = useState<any>(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -62,146 +49,96 @@ export default function HomePage() {
         setPendingOrders(data.pendingOrders || []);
         setAuditLogs(data.auditLogs || []);
       }
-    } catch (err) {
-      console.error("Dashboard data fetch error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleSearchCatalog(query: string) {
-    setCatalogQuery(query);
-    setSelectedCatalogItem(null);
-    setManualEvaluation(null);
-
-    try {
-      const res = await fetch("/api/catalog/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCatalogProducts(data.products || []);
-      }
-    } catch (err) {
-      console.error("Catalog search error:", err);
-    }
-  }
-
-  async function handleEvaluateCatalogItem(item: CatalogProduct) {
-    setSelectedCatalogItem(item);
-    setManualEvaluation(null);
-
-    try {
-      const res = await fetch("/api/orders/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: item.id,
-          productTitle: item.title,
-          price: item.price,
-          currency: item.currency,
-          category: item.category,
-          merchantDomain: item.merchant,
-          productUrl: item.url,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setManualEvaluation(data.evaluation);
-      }
-    } catch (err) {
-      console.error("Catalog item evaluate error:", err);
+    } catch {
+      // Handled silently for periodic dashboard sync
     }
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-      
-      {/* Top Header Navbar */}
-      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur sticky top-0 z-40 px-6 py-3.5">
+    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+      {/* Top Header */}
+      <header className="border-b border-zinc-800 bg-zinc-900 sticky top-0 z-40 px-6 py-3">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
-          {/* Logo & Brand Identity */}
+          {/* Logo & Subtitle */}
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-400/30">
-              <ShieldCheck className="h-6 w-6 text-white" />
+            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
+              <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-white tracking-tight">SpendGuard</span>
-                <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-mono font-bold">
+                <span className="text-base font-semibold text-zinc-100 tracking-tight">SpendGuard</span>
+                <span className="text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.5 rounded font-mono">
                   PayPal AI Hackathon
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">The LLM proposes, deterministic code decides.</p>
+              <p className="text-xs text-zinc-400">The LLM proposes, deterministic code decides.</p>
             </div>
           </div>
 
-          {/* Tab Navigation Navigation Pills */}
-          <div className="flex items-center gap-1.5 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
+          {/* Navigation Pills */}
+          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
             <button
               onClick={() => setActiveTab("chat")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === "chat"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               <Bot className="h-3.5 w-3.5" />
-              Agent Chat
+              Chat
             </button>
             <button
               onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === "dashboard"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               <BarChart3 className="h-3.5 w-3.5" />
               Dashboard
               {pendingOrders.length > 0 && (
-                <span className="bg-amber-500 text-slate-950 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
+                <span className="bg-amber-400 text-zinc-950 text-[9px] px-1.5 py-0.2 rounded-full font-semibold">
                   {pendingOrders.length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab("policy")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === "policy"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Policy Studio
+              Policy
             </button>
             <button
               onClick={() => setActiveTab("audit")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                 activeTab === "audit"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-blue-600 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               <Clock className="h-3.5 w-3.5" />
-              Audit Trail
+              Audit log
             </button>
           </div>
 
-          {/* Quick Stats Pill */}
-          <div className="hidden lg:flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-2xl px-4 py-2 text-xs">
+          {/* Monthly Budget Metric */}
+          <div className="hidden lg:flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs">
             <div className="flex flex-col text-right">
-              <span className="text-[10px] text-slate-400 font-medium">Monthly Cap</span>
-              <span className="font-bold text-white font-mono">${budget.spent.toFixed(2)} / ${budget.limit.toFixed(2)}</span>
+              <span className="text-[10px] text-zinc-400">Monthly budget</span>
+              <span className="font-semibold text-zinc-100 font-mono">${budget.spent.toFixed(2)} / ${budget.limit.toFixed(2)}</span>
             </div>
             <button
               onClick={fetchDashboardData}
-              title="Refresh live metrics"
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-850 transition"
+              title="Refresh"
+              className="text-zinc-400 hover:text-zinc-200 p-1 rounded hover:bg-zinc-800 transition"
             >
               <RefreshCw className="h-3.5 w-3.5" />
             </button>
@@ -212,56 +149,51 @@ export default function HomePage() {
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-6 py-6 w-full flex-1 space-y-6">
         
-        {/* Active Policy Banner */}
-        <div className="bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80 border border-slate-800/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+        {/* Active Policy Status Bar */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                Active Guardrail Policy (Ground Truth)
+                Active spending policy
               </span>
-              <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-                ENFORCED BY POLICY ENGINE
+              <span className="text-[9px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+                Deterministic
               </span>
             </div>
-            <p className="text-xs text-slate-300 italic font-mono text-[11px]">
+            <p className="text-xs text-zinc-400 font-mono text-[11px]">
               "{rawRules || "Max $150/month, electronics and books only, ask me before anything over $40, hard limit $100 per item."}"
             </p>
           </div>
 
           {policy && (
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
-              <span className="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl text-slate-200">
-                Cap: <strong className="text-white">${policy.maxMonthlyBudget}</strong>
+              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-zinc-300">
+                Cap: <strong className="text-zinc-100 font-medium">${policy.maxMonthlyBudget}</strong>
               </span>
-              <span className="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl text-amber-400">
+              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-amber-400">
                 Ask &gt; <strong>${policy.requireApprovalAbove}</strong>
               </span>
-              <span className="bg-slate-950/80 border border-slate-800 px-2.5 py-1 rounded-xl text-red-400">
-                Hard Cap: <strong>${policy.maxItemPrice}</strong>
+              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-red-400">
+                Ceiling: <strong>${policy.maxItemPrice}</strong>
               </span>
               <button
                 onClick={() => setActiveTab("policy")}
-                className="text-[11px] text-blue-400 hover:text-blue-300 font-sans font-semibold underline underline-offset-2 ml-1"
+                className="text-[11px] text-blue-400 hover:text-blue-300 font-sans font-medium underline underline-offset-2 ml-1"
               >
-                Edit in Policy Studio &rarr;
+                Edit policy
               </button>
             </div>
           )}
         </div>
 
-        {/* ========================================================================= */}
-        {/* TAB 1: Shopping Agent Chat Mode                                           */}
-        {/* ========================================================================= */}
+        {/* Tab 1: Chat */}
         {activeTab === "chat" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* Agent Chat Feed (8 Cols) */}
             <div className="lg:col-span-8">
               <AgentChat onOrderAction={fetchDashboardData} />
             </div>
 
-            {/* Right Side Support Panel (4 Cols): Budget + Pending Approvals Widget */}
             <div className="lg:col-span-4 space-y-6">
               <BudgetWidget
                 limit={budget.limit}
@@ -280,14 +212,10 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 2: Full Spending Dashboard Mode                                       */}
-        {/* ========================================================================= */}
+        {/* Tab 2: Dashboard */}
         {activeTab === "dashboard" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* Spend vs Budget Summary (6 Cols) */}
               <div className="lg:col-span-6">
                 <BudgetWidget
                   limit={budget.limit}
@@ -297,7 +225,6 @@ export default function HomePage() {
                 />
               </div>
 
-              {/* Pending Approvals Queue (6 Cols) */}
               <div className="lg:col-span-6">
                 <PendingApprovals
                   pendingOrders={pendingOrders}
@@ -306,84 +233,84 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Recent Captured Orders Table */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            {/* Recent Orders Table */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <PackageCheck className="h-5 w-5" />
+                  <div className="h-8 w-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center">
+                    <PackageCheck className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">Recent Purchase Orders</h3>
-                    <p className="text-xs text-slate-400">Captured and approved transactions recorded in SQLite.</p>
+                    <h3 className="text-sm font-semibold text-zinc-100">Recent orders</h3>
+                    <p className="text-xs text-zinc-400">Captured and approved transactions recorded in SQLite.</p>
                   </div>
                 </div>
-                <span className="text-xs text-slate-400 font-mono">
+                <span className="text-xs text-zinc-400 font-mono">
                   {recentOrders.length} orders
                 </span>
               </div>
 
               {recentOrders.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 text-xs">
-                  No orders have been recorded yet. Use the Agent Chat to purchase products.
+                <div className="py-10 text-center text-zinc-500 text-xs">
+                  No orders recorded yet. Use the Chat tab to start purchases.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-slate-400 font-mono uppercase text-[10px]">
-                        <th className="pb-3 font-semibold">Item & Category</th>
-                        <th className="pb-3 font-semibold">Merchant</th>
-                        <th className="pb-3 font-semibold">Price</th>
-                        <th className="pb-3 font-semibold">Decision</th>
-                        <th className="pb-3 font-semibold">Status</th>
-                        <th className="pb-3 font-semibold">PayPal Capture ID</th>
-                        <th className="pb-3 font-semibold text-right">Time</th>
+                      <tr className="border-b border-zinc-800 text-zinc-400 font-mono uppercase text-[10px]">
+                        <th className="pb-2.5 font-medium">Item</th>
+                        <th className="pb-2.5 font-medium">Merchant</th>
+                        <th className="pb-2.5 font-medium">Price</th>
+                        <th className="pb-2.5 font-medium">Decision</th>
+                        <th className="pb-2.5 font-medium">Status</th>
+                        <th className="pb-2.5 font-medium">Capture ID</th>
+                        <th className="pb-2.5 font-medium text-right">Time</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-zinc-800">
                       {recentOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-slate-950/40 transition">
-                          <td className="py-3 pr-3">
+                        <tr key={order.id} className="hover:bg-zinc-950 transition">
+                          <td className="py-2.5 pr-3">
                             <div className="flex items-center gap-2.5">
                               <ProductIcon category={order.category} title={order.product_title} size="sm" />
-                              <span className="font-semibold text-white max-w-[200px] truncate" title={order.product_title}>
+                              <span className="font-medium text-zinc-100 max-w-[200px] truncate" title={order.product_title}>
                                 {order.product_title}
                               </span>
                             </div>
                           </td>
-                          <td className="py-3 text-slate-400 font-mono text-[11px]">
+                          <td className="py-2.5 text-zinc-400 font-mono text-[11px]">
                             {order.merchant}
                           </td>
-                          <td className="py-3 font-bold font-mono text-white">
+                          <td className="py-2.5 font-medium font-mono text-zinc-100">
                             ${order.product_price.toFixed(2)}
                           </td>
-                          <td className="py-3">
-                            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                          <td className="py-2.5">
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                               order.decision === "AUTO_APPROVE"
-                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/60"
                                 : order.decision === "NEEDS_APPROVAL"
-                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                : "bg-red-500/10 text-red-400 border border-red-500/20"
+                                ? "bg-amber-950/40 text-amber-400 border-amber-800/60"
+                                : "bg-red-950/40 text-red-400 border-red-800/60"
                             }`}>
                               {order.decision}
                             </span>
                           </td>
-                          <td className="py-3 font-mono text-[11px]">
-                            <span className={`px-2 py-0.5 rounded-full ${
+                          <td className="py-2.5 font-mono text-[11px]">
+                            <span className={`px-1.5 py-0.5 rounded ${
                               order.status === "CAPTURED"
-                                ? "bg-emerald-500/10 text-emerald-400 font-bold"
+                                ? "bg-emerald-950/40 text-emerald-400"
                                 : order.status === "PENDING_APPROVAL"
-                                ? "bg-amber-500/10 text-amber-400 font-bold"
-                                : "text-slate-400"
+                                ? "bg-amber-950/40 text-amber-400"
+                                : "text-zinc-400"
                             }`}>
                               {order.status}
                             </span>
                           </td>
-                          <td className="py-3 font-mono text-[11px] text-slate-400 max-w-[140px] truncate">
+                          <td className="py-2.5 font-mono text-[11px] text-zinc-400 max-w-[140px] truncate">
                             {order.paypal_capture_id || (order.paypal_order_id ? `Order: ${order.paypal_order_id}` : "—")}
                           </td>
-                          <td className="py-3 text-slate-500 font-mono text-[10px] text-right">
+                          <td className="py-2.5 text-zinc-500 font-mono text-[10px] text-right">
                             {new Date(order.created_at).toLocaleTimeString()}
                           </td>
                         </tr>
@@ -396,9 +323,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 3: Side-by-Side Policy Studio Mode                                     */}
-        {/* ========================================================================= */}
+        {/* Tab 3: Policy Studio */}
         {activeTab === "policy" && (
           <PolicyStudio
             currentPolicy={policy}
@@ -411,9 +336,7 @@ export default function HomePage() {
           />
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 4: Full Audit Trail Mode                                              */}
-        {/* ========================================================================= */}
+        {/* Tab 4: Audit Log */}
         {activeTab === "audit" && (
           <AuditLogViewer logs={auditLogs} />
         )}

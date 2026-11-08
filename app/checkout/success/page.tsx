@@ -2,14 +2,13 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { CheckCircle2, ShieldCheck, ArrowLeft, RefreshCw, AlertCircle } from "lucide-react";
+import { CheckCircle2, ArrowLeft, AlertCircle } from "lucide-react";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const token = searchParams.get("token"); // PayPal Order ID
-  const payerId = searchParams.get("PayerID");
+  const token = searchParams.get("token");
 
   const [isCapturing, setIsCapturing] = useState(true);
   const [captureData, setCaptureData] = useState<any>(null);
@@ -47,78 +46,77 @@ function SuccessContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6">
         
         {isCapturing ? (
-          <div className="py-12 text-center space-y-4">
-            <RefreshCw className="h-10 w-10 animate-spin text-blue-500 mx-auto" />
-            <h2 className="text-lg font-bold text-white">Finalizing PayPal Capture...</h2>
-            <p className="text-xs text-slate-400">
-              Capturing authorized funds via PayPal Orders v2 sandbox API and logging audit record.
+          <div className="py-12 text-center space-y-3">
+            <h2 className="text-base font-semibold text-zinc-100">Capturing PayPal payment...</h2>
+            <p className="text-xs text-zinc-400">
+              Finalizing order capture via PayPal Orders v2 sandbox API.
             </p>
           </div>
         ) : error ? (
           <div className="space-y-4 text-center">
-            <div className="h-14 w-14 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-400">
-              <AlertCircle className="h-8 w-8" />
+            <div className="h-12 w-12 bg-red-950/40 border border-red-800/60 rounded-full flex items-center justify-center mx-auto text-red-400">
+              <AlertCircle className="h-6 w-6" />
             </div>
-            <h2 className="text-xl font-bold text-white">Capture Failed</h2>
-            <p className="text-sm text-red-300 bg-red-950/40 p-3 rounded-xl border border-red-900/60 font-mono text-xs">
+            <h2 className="text-lg font-semibold text-zinc-100">Capture failed</h2>
+            <p className="text-xs text-red-300 bg-red-950/40 p-3 rounded-lg border border-red-800/60 font-mono">
               {error}
             </p>
             <button
               onClick={() => router.push("/")}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-4 rounded-xl text-sm transition"
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium py-2.5 px-4 rounded-lg text-xs transition"
             >
-              Return to SpendGuard
+              Return to dashboard
             </button>
           </div>
         ) : (
-          <div className="space-y-6 text-center">
-            <div className="h-16 w-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-400 shadow-lg shadow-emerald-500/20">
-              <CheckCircle2 className="h-10 w-10" />
+          <div className="space-y-5 text-center">
+            <div className="h-12 w-12 bg-emerald-950/40 border border-emerald-800/60 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+              <CheckCircle2 className="h-6 w-6" />
             </div>
 
             <div>
-              <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                Sandbox Payment Captured
+              <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-medium bg-emerald-950/40 border border-emerald-800/60 px-2 py-0.5 rounded">
+                Payment captured
               </span>
-              <h2 className="text-2xl font-bold text-white mt-3">Transaction Confirmed</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Policy engine validated and captured via PayPal Orders v2 REST API.
+              <h2 className="text-xl font-semibold text-zinc-100 mt-2">Order confirmed</h2>
+              <p className="text-xs text-zinc-400 mt-1">
+                Validated by policy engine and captured through PayPal sandbox.
               </p>
             </div>
 
             {captureData?.order && (
-              <div className="bg-slate-950 rounded-2xl p-4 border border-slate-800/80 text-left space-y-2.5 text-xs">
-                <div className="flex justify-between pb-2 border-b border-slate-800">
-                  <span className="text-slate-400">Item</span>
-                  <span className="text-white font-medium truncate max-w-[180px]">
+              <div className="bg-zinc-950 rounded-lg p-3.5 border border-zinc-800 text-left space-y-2 text-xs">
+                <div className="flex justify-between pb-2 border-b border-zinc-800">
+                  <span className="text-zinc-400">Item</span>
+                  <span className="text-zinc-100 font-medium truncate max-w-[180px]">
                     {captureData.order.product_title}
                   </span>
                 </div>
-                <div className="flex justify-between pb-2 border-b border-slate-800">
-                  <span className="text-slate-400">Amount Charged</span>
-                  <span className="text-emerald-400 font-bold font-mono">
+                <div className="flex justify-between pb-2 border-b border-zinc-800">
+                  <span className="text-zinc-400">Amount</span>
+                  <span className="text-emerald-400 font-medium font-mono">
                     ${captureData.order.product_price.toFixed(2)} USD
                   </span>
                 </div>
-                <div className="flex justify-between pb-2 border-b border-slate-800">
-                  <span className="text-slate-400">PayPal Capture ID</span>
-                  <span className="text-slate-200 font-mono text-[11px] truncate max-w-[180px]">
+                <div className="flex justify-between pb-2 border-b border-zinc-800">
+                  <span className="text-zinc-400">Capture ID</span>
+                  <span className="text-zinc-300 font-mono text-[11px] truncate max-w-[180px]">
                     {captureData.captureId}
                   </span>
                 </div>
-                <div className="flex justify-between pb-2 border-b border-slate-800">
-                  <span className="text-slate-400">Policy Decision</span>
-                  <span className="text-emerald-400 font-semibold">
+                <div className="flex justify-between pb-2 border-b border-zinc-800">
+                  <span className="text-zinc-400">Decision</span>
+                  <span className="text-emerald-400 font-medium">
                     {captureData.order.decision}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Remaining Budget</span>
-                  <span className="text-white font-bold font-mono">
+                  <span className="text-zinc-400">Remaining budget</span>
+                  <span className="text-zinc-100 font-medium font-mono">
                     ${(captureData.budget?.budget_limit - captureData.budget?.total_spent).toFixed(2)} USD
                   </span>
                 </div>
@@ -127,10 +125,10 @@ function SuccessContent() {
 
             <button
               onClick={() => router.push("/")}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Return to Dashboard
+              Return to dashboard
             </button>
           </div>
         )}
@@ -143,7 +141,7 @@ function SuccessContent() {
 export default function SuccessPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400 text-xs">
         Loading checkout status...
       </div>
     }>

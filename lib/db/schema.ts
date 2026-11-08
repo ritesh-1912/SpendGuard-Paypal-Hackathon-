@@ -1,5 +1,5 @@
 import { getDb } from "./index";
-import { Policy, EvaluationResult } from "../policy/types";
+import { Policy } from "../policy/types";
 
 export interface OrderRecord {
   id: string;
@@ -83,7 +83,7 @@ export function updateBudgetSpend(amountToAdd: number): void {
   const now = new Date();
   const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  getCurrentBudgetLedger(); // Ensure row exists
+  getCurrentBudgetLedger();
   db.prepare(`
     UPDATE budget_ledger
     SET total_spent = total_spent + ?, updated_at = datetime('now')
@@ -175,7 +175,6 @@ export function logAuditEvent(
   const db = getDb();
   const id = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-  // Mask sensitive values if any leak into payload
   const safePayload = JSON.stringify(payload, (key, value) => {
     if (typeof key === "string" && /secret|token|password|auth|authorization/i.test(key)) {
       return "[REDACTED]";

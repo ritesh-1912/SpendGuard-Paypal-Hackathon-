@@ -79,14 +79,14 @@ export async function createPayPalOrder(params: CreateOrderParams): Promise<Crea
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Failed to create PayPal order: ${response.status} - ${errText}`);
+    throw new Error(`Failed to create PayPal order (${response.status}): ${errText}`);
   }
 
   const orderData = (await response.json()) as PayPalOrderResponse;
   const approveLink = orderData.links.find((l) => l.rel === "approve");
 
   if (!approveLink) {
-    throw new Error("PayPal order created but no 'approve' link was returned.");
+    throw new Error("PayPal created the order but did not return an approval link.");
   }
 
   return {
@@ -126,7 +126,7 @@ export async function capturePayPalOrder(paypalOrderId: string): Promise<Capture
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Failed to capture PayPal order ${paypalOrderId}: ${response.status} - ${errText}`);
+    throw new Error(`Failed to capture PayPal order ${paypalOrderId} (${response.status}): ${errText}`);
   }
 
   const captureData = (await response.json()) as PayPalCaptureResponse;

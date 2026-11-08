@@ -5,10 +5,7 @@ import {
   Send, 
   Bot, 
   User, 
-  Sparkles, 
-  RefreshCw,
-  Search,
-  MessageSquare
+  Terminal
 } from "lucide-react";
 import { PurchaseProposal, EvaluationResult } from "@/lib/policy/types";
 import ApprovalCard from "./ApprovalCard";
@@ -34,7 +31,7 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
     {
       id: "msg_welcome",
       sender: "agent",
-      text: "Hello! I am your SpendGuard Shopping Agent. Tell me what you need to purchase (e.g. 'buy a USB-C hub under $40' or 'find a mechanical keyboard'), and I will discover products and submit every purchase proposal through your deterministic policy engine before any PayPal charge occurs.",
+      text: "Tell me what you want to purchase (for example, 'buy a USB-C hub under $40' or 'find a mechanical keyboard'). Every purchase proposal is evaluated by deterministic policy rules before any PayPal order is created.",
     },
   ]);
   const [inputText, setInputText] = useState("");
@@ -92,7 +89,7 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
         {
           id: `err_${Date.now()}`,
           sender: "agent",
-          text: `⚠️ Agent Error: ${err.message || "Failed to process request."}`,
+          text: `Error: ${err.message || "Failed to process request."}`,
         },
       ]);
     } finally {
@@ -110,57 +107,57 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
   }
 
   return (
-    <div className={`bg-slate-900/60 border border-slate-800 rounded-3xl flex flex-col h-[650px] shadow-sm ${className}`}>
+    <div className={`bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col h-[640px] ${className}`}>
       
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
-            <Bot className="h-5 w-5" />
+          <div className="h-8 w-8 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center">
+            <Bot className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              Gemini AI Shopping Agent
-              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono font-bold">
-                Guardrail Intercept Active
+            <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+              Shopping agent
+              <span className="text-[10px] bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 px-1.5 py-0.5 rounded font-mono">
+                Policy engine active
               </span>
             </h3>
-            <p className="text-xs text-slate-400">LLM proposes candidates $\rightarrow$ Pure code decides approval.</p>
+            <p className="text-xs text-zinc-400">Agent proposes products; deterministic policy code decides.</p>
           </div>
         </div>
       </div>
 
       {/* Suggested Scenario Buttons */}
-      <div className="px-4 py-2 bg-slate-950/60 border-b border-slate-800/80 flex items-center gap-2 overflow-x-auto text-xs">
-        <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap">Suggested:</span>
+      <div className="px-4 py-2 bg-zinc-950 border-b border-zinc-800 flex items-center gap-2 overflow-x-auto text-xs">
+        <span className="text-[11px] text-zinc-500 whitespace-nowrap">Examples:</span>
         <button
           onClick={() => handleSend("Buy a multiport USB-C hub under $40")}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700/60 transition whitespace-nowrap"
+          className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-md border border-zinc-800 transition whitespace-nowrap"
         >
-          ⚡ USB-C Hub ($39.99 Auto-Approve)
+          USB-C Hub ($38.50 - Auto-approve)
         </button>
         <button
           onClick={() => handleSend("Buy a mechanical keyboard around $65")}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700/60 transition whitespace-nowrap"
+          className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-md border border-zinc-800 transition whitespace-nowrap"
         >
-          ⚠️ Keyboard ($64.99 Needs-Approval)
+          Keyboard ($64.20 - Needs approval)
         </button>
         <button
           onClick={() => handleSend("Buy lightweight running shoes")}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700/60 transition whitespace-nowrap"
+          className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-md border border-zinc-800 transition whitespace-nowrap"
         >
-          🛑 Running Shoes (Blocked Category)
+          Running shoes (Blocked category)
         </button>
         <button
           onClick={() => handleSend("Buy studio noise-cancelling headphones")}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700/60 transition whitespace-nowrap"
+          className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-md border border-zinc-800 transition whitespace-nowrap"
         >
-          🛑 Studio Headphones (Hard Cap $100)
+          Headphones (Exceeds $100 ceiling)
         </button>
       </div>
 
       {/* Messages Feed */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((m) => {
           const isUser = m.sender === "user";
           return (
@@ -169,27 +166,27 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
               className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
             >
               {!isUser && (
-                <div className="h-8 w-8 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot className="h-4 w-4" />
+                <div className="h-7 w-7 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bot className="h-3.5 w-3.5" />
                 </div>
               )}
 
               <div className={`max-w-[85%] space-y-3 ${isUser ? "items-end" : "items-start"}`}>
                 <div
-                  className={`p-4 rounded-2xl text-xs leading-relaxed ${
+                  className={`p-3.5 rounded-lg text-xs leading-relaxed ${
                     isUser
-                      ? "bg-blue-600 text-white rounded-tr-none shadow-md"
-                      : "bg-slate-950/90 text-slate-200 border border-slate-800 rounded-tl-none shadow-md"
+                      ? "bg-blue-600 text-white rounded-tr-none"
+                      : "bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-tl-none"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{m.text}</p>
 
                   {/* Tool Invocations Badge */}
                   {m.toolsUsed && m.toolsUsed.length > 0 && (
-                    <div className="flex items-center gap-1.5 pt-2.5 mt-2.5 border-t border-slate-800/80 text-[10px] text-slate-400 font-mono">
-                      <Sparkles className="h-3 w-3 text-amber-400" />
-                      Tools invoked: {m.toolsUsed.map((t) => (
-                        <span key={t} className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
+                    <div className="flex items-center gap-1.5 pt-2 mt-2 border-t border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                      <Terminal className="h-3 w-3 text-zinc-400" />
+                      Tools: {m.toolsUsed.map((t) => (
+                        <span key={t} className="bg-zinc-800 px-1 py-0.5 rounded text-zinc-300">
                           {t}()
                         </span>
                       ))}
@@ -211,8 +208,8 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
               </div>
 
               {isUser && (
-                <div className="h-8 w-8 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="h-4 w-4" />
+                <div className="h-7 w-7 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <User className="h-3.5 w-3.5" />
                 </div>
               )}
             </div>
@@ -220,20 +217,19 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
         })}
 
         {isLoading && (
-          <div className="flex gap-3 items-center text-xs text-slate-400">
-            <div className="h-8 w-8 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
-              <Bot className="h-4 w-4" />
+          <div className="flex gap-3 items-center text-xs text-zinc-400">
+            <div className="h-7 w-7 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center">
+              <Bot className="h-3.5 w-3.5" />
             </div>
-            <div className="flex items-center gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800 shadow-md">
-              <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-400" />
-              <span>Querying Channel3 catalog & evaluating guardrail rules...</span>
+            <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 text-xs text-zinc-400">
+              Searching product catalog and evaluating policy rules...
             </div>
           </div>
         )}
       </div>
 
       {/* Input Form */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/80 rounded-b-3xl">
+      <div className="p-3 border-t border-zinc-800 bg-zinc-950 rounded-b-xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -245,13 +241,13 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Ask agent: 'buy a USB-C hub under $40' or 'find a coding handbook'..."
-            className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Ask agent: 'buy a USB-C hub under $40'..."
+            className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
           />
           <button
             type="submit"
             disabled={isLoading || !inputText.trim()}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-blue-500/20"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1.5"
           >
             <Send className="h-3.5 w-3.5" />
             <span>Send</span>

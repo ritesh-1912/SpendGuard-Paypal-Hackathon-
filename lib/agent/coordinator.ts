@@ -19,7 +19,7 @@ export async function runShoppingAgentLoop(
 ): Promise<AgentChatResult> {
   const activePolicyData = getActivePolicy();
   if (!activePolicyData) {
-    throw new Error("No active spending policy is configured. Please configure and confirm rules first.");
+    throw new Error("No active spending policy is configured. Set and confirm your rules first.");
   }
 
   const activePolicy = activePolicyData.policy;
@@ -35,16 +35,15 @@ export async function runShoppingAgentLoop(
       const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
       const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-      const systemInstruction = `You are SpendGuard Shopping Assistant, an AI purchasing agent.
-You help users find products according to their goals.
-IMPORTANT CONSTRAINTS:
-1. You can search products using the 'searchProducts' tool.
-2. You can check budget limits using 'getBudgetSummary'.
-3. You do NOT have any ability or tool to charge payment methods, create PayPal orders, or execute transactions.
-4. When you recommend a product to buy, describe it clearly, mention the price and merchant, and propose it to the user.
-5. All proposals will be strictly evaluated by SpendGuard's deterministic guardrail engine.`;
+      const systemInstruction = `You are the SpendGuard shopping agent.
+Help users find products matching their request.
+Rules:
+1. Search products using the searchProducts tool.
+2. Check budget limits using getBudgetSummary.
+3. You cannot execute payments or call PayPal directly.
+4. When recommending a product, state its exact title, price in USD, and merchant.
+5. All proposals are intercepted and evaluated by deterministic code before checkout.`;
 
-      // Build conversation turns
       const contents: any[] = [
         ...history.map((h) => ({
           role: h.role,
@@ -56,7 +55,6 @@ IMPORTANT CONSTRAINTS:
         },
       ];
 
-      // Turn 1: Call Gemini with tools
       const response = await ai.models.generateContent({
         model,
         contents,
@@ -99,8 +97,7 @@ IMPORTANT CONSTRAINTS:
           }
         }
 
-        // Turn 2: Feed tool responses back to Gemini
-        const turn2 = await ai.models.generateContent({
+        const secondTurn = await ai.models.generateContent({
           model,
           contents: [
             ...contents,
@@ -121,7 +118,7 @@ IMPORTANT CONSTRAINTS:
           },
         });
 
-        const replyText = turn2.text || "Here is what I found based on your request.";
+        const replyText = secondTurn.text || "Found products matching your request.";
         const candidate = selectCandidateProduct(foundProducts, userMessage);
 
         if (candidate) {
@@ -136,7 +133,6 @@ IMPORTANT CONSTRAINTS:
             imageUrl: candidate.imageUrl,
           };
 
-          // Deterministic policy engine gate (NO LLM decides approval!)
           const evaluation = evaluatePurchaseProposal(proposal, activePolicy, {
             currentMonthSpent: ledger.total_spent,
             recentOrders,
@@ -144,7 +140,7 @@ IMPORTANT CONSTRAINTS:
 
           logAuditEvent(
             "AGENT_PROPOSAL",
-            `Agent proposed '${proposal.productTitle}' ($${proposal.price}) -> ${evaluation.decision}`,
+            `Proposed '${proposal.productTitle}' ($${proposal.price.toFixed(2)}) -> ${evaluation.decision}`,
             { userMessage, proposal, evaluation, toolsUsed },
             evaluation.decision === "BLOCKED" ? "WARN" : "INFO"
           );
@@ -165,26 +161,24 @@ IMPORTANT CONSTRAINTS:
         };
       }
 
-      // No function calls emitted
       return {
-        reply: response.text || "How can I help you find and safely purchase products today?",
+        reply: response.text || "Tell me what product you are looking for.",
         proposal: null,
         evaluation: null,
         toolsUsed,
       };
-    } catch (err: any) {
-      console.warn("[Gemini Agent] Error calling live API, using deterministic fallback loop:", err.message);
+    } catch {
+      // Fall back to deterministic catalog matching if API call fails
     }
   }
 
-  // Fallback Agent Loop (Simulates function calling offline)
   toolsUsed.push("searchProducts");
   foundProducts = await searchProducts(userMessage);
   const candidate = selectCandidateProduct(foundProducts, userMessage);
 
   if (!candidate) {
     return {
-      reply: `I searched the product catalog for "${userMessage}", but couldn't find a matching product. Could you try a different keyword?`,
+      reply: `No products found matching "${userMessage}". Try another search term.`,
       proposal: null,
       evaluation: null,
       toolsUsed,
@@ -207,11 +201,11 @@ IMPORTANT CONSTRAINTS:
     recentOrders,
   });
 
-  const reply = `I searched Channel3 and found **${candidate.title}** from ${candidate.merchant} for **$${candidate.price.toFixed(2)} USD**. I have submitted it to SpendGuard's guardrail layer for policy validation.`;
+  const reply = `Found ${candidate.title} from ${candidate.merchant} for $${candidate.price.toFixed(2)} USD. Submitted to guardrail policy engine for evaluation.`;
 
   logAuditEvent(
     "AGENT_PROPOSAL",
-    `Agent proposed '${proposal.productTitle}' ($${proposal.price}) -> ${evaluation.decision}`,
+    `Proposed '${proposal.productTitle}' ($${proposal.price.toFixed(2)}) -> ${evaluation.decision}`,
     { userMessage, proposal, evaluation, toolsUsed },
     evaluation.decision === "BLOCKED" ? "WARN" : "INFO"
   );
@@ -227,24 +221,20 @@ IMPORTANT CONSTRAINTS:
 function selectCandidateProduct(products: CatalogProduct[], query: string): CatalogProduct | null {
   if (products.length === 0) return null;
 
-  // If query mentions keyboard
   if (/keyboard/i.test(query)) {
     const kb = products.find((p) => /keyboard/i.test(p.title));
     if (kb) return kb;
   }
 
-  // If query mentions headphone or sony
-  if (/headphone|sony/i.test(query)) {
-    const hp = products.find((p) => /headphone|sony/i.test(p.title));
+  if (/headphone|audio/i.test(query)) {
+    const hp = products.find((p) => /headphone/i.test(p.title));
     if (hp) return hp;
   }
 
-  // If query mentions shoes or nike
-  if (/shoes|sneakers|nike/i.test(query)) {
-    const sh = products.find((p) => /shoes|nike/i.test(p.title));
+  if (/shoes|sneakers|runner/i.test(query)) {
+    const sh = products.find((p) => /shoes/i.test(p.title));
     if (sh) return sh;
   }
 
-  // Default to first result
   return products[0];
 }
