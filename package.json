@@ -8,7 +8,8 @@
     "start": "next start",
     "seed": "tsx lib/db/seed.ts",
     "lint": "next lint",
-    "test": "node --import tsx --test tests/**/*.test.ts"
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test:live": "tsx scripts/live-test.ts"
   },
   "dependencies": {
     "@google/genai": "^3.0.0",
