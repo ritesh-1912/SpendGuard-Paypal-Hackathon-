@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "seed": "tsx lib/db/seed.ts",
     "lint": "next lint",
     "test": "node --import tsx --test tests/**/*.test.ts"
   },

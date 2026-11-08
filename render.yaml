@@ -1,0 +1,41 @@
+# ==============================================================================
+# SpendGuard Render Deployment Configuration (render.yaml)
+# PayPal AI Hackathon (Devpost)
+# ==============================================================================
+
+services:
+  - type: web
+    name: spendguard
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: NEXT_PUBLIC_APP_URL
+        fromService:
+          type: web
+          name: spendguard
+          property: host
+      - key: PAYPAL_ENVIRONMENT
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: CHANNEL3_BASE_URL
+        value: https://api.trychannel3.com/v1
+      - key: DATABASE_PATH
+        value: ./data/spendguard.db
+      - key: MOCK_PAYPAL_CAPTURE
+        value: "false"

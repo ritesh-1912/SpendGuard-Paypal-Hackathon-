@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
+import { seedDemoData } from "./seed";
 
 let dbInstance: DatabaseSync | null = null;
 
@@ -23,7 +24,7 @@ export function getDb(): DatabaseSync {
   db.exec("PRAGMA foreign_keys = ON;");
   
   initializeSchema(db);
-  seedInitialData(db);
+  seedDemoData(db);
 
   dbInstance = db;
   return dbInstance;
