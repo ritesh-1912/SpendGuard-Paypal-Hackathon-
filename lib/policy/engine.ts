@@ -27,28 +27,7 @@ export function evaluatePurchaseProposal(
     };
   }
 
-  // 3. Hard Max Item Price Ceiling
-  if (proposal.price > policy.maxItemPrice) {
-    return {
-      decision: "BLOCKED",
-      ruleFired: "RULE_MAX_ITEM_PRICE_EXCEEDED",
-      reason: `Item price ($${proposal.price.toFixed(2)}) exceeds hard maximum limit of $${policy.maxItemPrice.toFixed(2)}.`,
-    };
-  }
-
-  // 4. Monthly Budget Overflow Check
-  const projectedTotal = context.currentMonthSpent + proposal.price;
-  // Use epsilon rounding for floating point safety
-  if (Math.round(projectedTotal * 100) > Math.round(policy.maxMonthlyBudget * 100)) {
-    const remaining = Math.max(0, policy.maxMonthlyBudget - context.currentMonthSpent);
-    return {
-      decision: "BLOCKED",
-      ruleFired: "RULE_MONTHLY_BUDGET_EXCEEDED",
-      reason: `Purchase of $${proposal.price.toFixed(2)} exceeds remaining monthly budget of $${remaining.toFixed(2)} (Spent: $${context.currentMonthSpent.toFixed(2)} / Cap: $${policy.maxMonthlyBudget.toFixed(2)}).`,
-    };
-  }
-
-  // 5. Merchant Domain Blacklist Check
+  // 3. Merchant Domain Blacklist Check
   if (policy.blockedMerchants && policy.blockedMerchants.length > 0) {
     const isBlocked = policy.blockedMerchants.some((m) =>
       proposal.merchantDomain.toLowerCase().includes(m.toLowerCase())
@@ -62,7 +41,7 @@ export function evaluatePurchaseProposal(
     }
   }
 
-  // 6. Merchant Domain Whitelist Check
+  // 4. Merchant Domain Whitelist Check
   if (policy.allowedMerchants && policy.allowedMerchants.length > 0) {
     const isAllowed = policy.allowedMerchants.some((m) =>
       proposal.merchantDomain.toLowerCase().includes(m.toLowerCase())
@@ -76,7 +55,7 @@ export function evaluatePurchaseProposal(
     }
   }
 
-  // 7. Explicit Category Blacklist Check
+  // 5. Explicit Category Blacklist Check
   if (policy.blockedCategories && policy.blockedCategories.length > 0) {
     const isCategoryBlocked = policy.blockedCategories.some((cat) =>
       proposal.category.toLowerCase().includes(cat.toLowerCase())
@@ -90,7 +69,7 @@ export function evaluatePurchaseProposal(
     }
   }
 
-  // 8. Category Whitelist Check
+  // 6. Category Whitelist Check
   const isCategoryAllowed = policy.allowedCategories.some((cat) =>
     proposal.category.toLowerCase().includes(cat.toLowerCase())
   );
@@ -99,6 +78,27 @@ export function evaluatePurchaseProposal(
       decision: "BLOCKED",
       ruleFired: "RULE_CATEGORY_NOT_ALLOWED",
       reason: `Category '${proposal.category}' is not included in allowed categories: [${policy.allowedCategories.join(", ")}].`,
+    };
+  }
+
+  // 7. Hard Max Item Price Ceiling
+  if (proposal.price > policy.maxItemPrice) {
+    return {
+      decision: "BLOCKED",
+      ruleFired: "RULE_MAX_ITEM_PRICE_EXCEEDED",
+      reason: `Item price ($${proposal.price.toFixed(2)}) exceeds hard maximum limit of $${policy.maxItemPrice.toFixed(2)}.`,
+    };
+  }
+
+  // 8. Monthly Budget Overflow Check
+  const projectedTotal = context.currentMonthSpent + proposal.price;
+  // Use epsilon rounding for floating point safety
+  if (Math.round(projectedTotal * 100) > Math.round(policy.maxMonthlyBudget * 100)) {
+    const remaining = Math.max(0, policy.maxMonthlyBudget - context.currentMonthSpent);
+    return {
+      decision: "BLOCKED",
+      ruleFired: "RULE_MONTHLY_BUDGET_EXCEEDED",
+      reason: `Purchase of $${proposal.price.toFixed(2)} exceeds remaining monthly budget of $${remaining.toFixed(2)} (Spent: $${context.currentMonthSpent.toFixed(2)} / Cap: $${policy.maxMonthlyBudget.toFixed(2)}).`,
     };
   }
 
