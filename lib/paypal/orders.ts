@@ -1,5 +1,6 @@
 import { getPayPalAccessToken } from "./auth";
 import { PayPalOrderResponse, PayPalCaptureResponse } from "./types";
+import { getAppUrl } from "@/lib/config/env";
 
 export interface CreateOrderParams {
   internalOrderId: string;
@@ -30,7 +31,7 @@ function getBaseUrl(): string {
 
 export async function createPayPalOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
   const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl = getAppUrl();
 
   const returnUrl = params.returnUrl || `${appUrl}/checkout/success`;
   const cancelUrl = params.cancelUrl || `${appUrl}/checkout/cancel`;

@@ -4,6 +4,14 @@ export interface EnvValidationResult {
   warnings: string[];
 }
 
+export function getAppUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const url = (env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim();
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    return `https://${url}`;
+  }
+  return url;
+}
+
 export function validateEnvironment(env: NodeJS.ProcessEnv = process.env): EnvValidationResult {
   const missing: string[] = [];
   const warnings: string[] = [];

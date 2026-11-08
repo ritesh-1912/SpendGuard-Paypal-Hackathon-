@@ -11,6 +11,7 @@ import {
 import { evaluatePurchaseProposal } from "@/lib/policy/engine";
 import { createPayPalOrder } from "@/lib/paypal/orders";
 import { PurchaseProposal } from "@/lib/policy/types";
+import { getAppUrl } from "@/lib/config/env";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (existingOrder) {
       if (existingOrder.paypal_order_id && (existingOrder.status === "CREATED" || existingOrder.status === "APPROVED")) {
         const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || existingOrder.paypal_order_id.startsWith("MOCK_ORDER_");
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const appUrl = getAppUrl();
         const approveUrl = isMock
           ? `${appUrl}/checkout/success?token=${existingOrder.paypal_order_id}&mock=true`
           : `https://www.sandbox.paypal.com/checkoutnow?token=${existingOrder.paypal_order_id}`;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrderById, updateOrder, logAuditEvent } from "@/lib/db/schema";
 import { createPayPalOrder } from "@/lib/paypal/orders";
+import { getAppUrl } from "@/lib/config/env";
 
 export async function POST(
   req: NextRequest,
@@ -21,7 +22,7 @@ export async function POST(
     // Idempotency: If this pending order already has an active PayPal order, return it without creating another
     if (order.paypal_order_id && order.status === "CREATED") {
       const isMock = process.env.MOCK_PAYPAL_CAPTURE === "true" || order.paypal_order_id.startsWith("MOCK_ORDER_");
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const appUrl = getAppUrl();
       const approveUrl = isMock
         ? `${appUrl}/checkout/success?token=${order.paypal_order_id}&mock=true`
         : `https://www.sandbox.paypal.com/checkoutnow?token=${order.paypal_order_id}`;
