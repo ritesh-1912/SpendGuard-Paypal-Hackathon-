@@ -84,6 +84,7 @@ export async function GET() {
       const res = await fetch(`${baseUrl}/search`, {
         method: "POST",
         headers: {
+          "x-api-key": process.env.CHANNEL3_API_KEY.trim(),
           "Authorization": `Bearer ${process.env.CHANNEL3_API_KEY.trim()}`,
           "Content-Type": "application/json",
         },

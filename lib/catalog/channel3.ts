@@ -109,6 +109,7 @@ export async function searchProducts(query: string, maxPrice?: number): Promise<
       const response = await fetch(`${baseUrl}/search`, {
         method: "POST",
         headers: {
+          "x-api-key": apiKey.trim(),
           "Authorization": `Bearer ${apiKey.trim()}`,
           "Content-Type": "application/json",
         },
@@ -134,7 +135,14 @@ export async function searchProducts(query: string, maxPrice?: number): Promise<
       const mapped: CatalogProduct[] = [];
       for (const p of products) {
         const offer = p.offers?.[0];
-        const priceAmount = offer?.price?.amount ? Number(offer.price.amount) : 0;
+        let priceAmount = 0;
+        if (typeof offer?.price === "number") {
+          priceAmount = offer.price;
+        } else if (typeof offer?.price?.price === "number") {
+          priceAmount = offer.price.price;
+        } else if (offer?.price?.amount) {
+          priceAmount = Number(offer.price.amount);
+        }
         if (priceAmount <= 0) continue;
 
         mapped.push({
