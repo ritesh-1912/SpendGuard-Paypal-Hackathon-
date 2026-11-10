@@ -125,7 +125,14 @@ async function runLiveTestSuite() {
   let overThresholdProduct: any = null;
 
   try {
-    const searchRes = await fetch(`${targetUrl}/api/catalog/search?q=ergonomic+mouse`, { method: "GET" });
+    let searchRes = await fetch(`${targetUrl}/api/catalog/search?q=ergonomic+mouse`, { method: "GET" });
+    if (searchRes.status === 405) {
+      searchRes = await fetch(`${targetUrl}/api/catalog/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "ergonomic mouse" }),
+      });
+    }
     const searchData = await searchRes.json();
 
     if (!searchRes.ok || !searchData.success || !Array.isArray(searchData.products) || searchData.products.length === 0) {

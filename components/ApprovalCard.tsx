@@ -84,15 +84,15 @@ export default function ApprovalCard({
       
       {/* Product Meta */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <ProductIcon category={proposal.category} title={proposal.productTitle} size="md" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
-              <span>{proposal.merchantDomain}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-400 font-mono">
+              <span className="truncate max-w-[140px]" title={proposal.merchantDomain}>{proposal.merchantDomain}</span>
               <span>/</span>
               <span className="capitalize">{proposal.category}</span>
               {proposal.isSample && (
-                <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded">
+                <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded whitespace-nowrap">
                   Sample data
                 </span>
               )}
@@ -103,8 +103,8 @@ export default function ApprovalCard({
           </div>
         </div>
 
-        <div className="text-right flex-shrink-0">
-          <div className="text-sm font-semibold text-zinc-100 font-mono">
+        <div className="text-right flex-shrink-0 pl-2">
+          <div className="text-sm font-semibold text-zinc-100 font-mono whitespace-nowrap">
             ${proposal.price.toFixed(2)}
           </div>
           <div className="text-[10px] text-zinc-400">
@@ -115,25 +115,25 @@ export default function ApprovalCard({
 
       {/* Decision Block */}
       <div className={`p-3 rounded-lg border text-xs space-y-1.5 ${statusBadge}`}>
-        <div className="flex items-center justify-between font-mono">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 font-mono">
           <div className="flex items-center gap-1.5 font-semibold text-xs tracking-wide">
-            {isAuto && <ShieldCheck className="h-3.5 w-3.5" />}
-            {isNeeds && <AlertTriangle className="h-3.5 w-3.5" />}
-            {isBlocked && <ShieldAlert className="h-3.5 w-3.5" />}
+            {isAuto && <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />}
+            {isNeeds && <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />}
+            {isBlocked && <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0" />}
             <span>{evaluation.decision}</span>
           </div>
-          <span className="text-[10px] opacity-75">
+          <span className="text-[10px] opacity-80 truncate max-w-[220px]" title={evaluation.ruleFired}>
             {evaluation.ruleFired}
           </span>
         </div>
 
-        <p className="text-zinc-200 text-xs leading-normal">
+        <p className="text-zinc-200 text-xs leading-normal break-words">
           {evaluation.reason}
         </p>
 
         {isBlocked && (
-          <div className="pt-0.5 text-[11px] text-red-300 flex items-center gap-1">
-            <Lock className="h-3 w-3" />
+          <div className="pt-0.5 text-[11px] text-red-300 flex items-center gap-1.5 flex-wrap">
+            <Lock className="h-3 w-3 flex-shrink-0" />
             <span>Purchase blocked. The payment gateway was not contacted.</span>
           </div>
         )}

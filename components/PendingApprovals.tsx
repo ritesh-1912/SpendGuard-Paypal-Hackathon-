@@ -121,31 +121,31 @@ export default function PendingApprovals({
                 className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <ProductIcon category={order.category} title={order.product_title} size="md" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-zinc-400 uppercase">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="text-[10px] font-mono text-zinc-400 uppercase truncate max-w-[120px]">
                           {order.merchant}
                         </span>
                         <span className="text-zinc-600">•</span>
-                        <span className="text-[10px] text-zinc-400">
+                        <span className="text-[10px] text-zinc-400 capitalize">
                           {order.category}
                         </span>
                         {isSample && (
-                          <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded">
+                          <span className="text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700 px-1 py-0.2 rounded whitespace-nowrap">
                             Sample data
                           </span>
                         )}
                       </div>
-                      <h4 className="text-sm font-medium text-zinc-100 truncate mt-0.5">
+                      <h4 className="text-sm font-medium text-zinc-100 truncate mt-0.5" title={order.product_title}>
                         {order.product_title}
                       </h4>
                     </div>
                   </div>
 
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-semibold text-zinc-100 font-mono">
+                  <div className="text-right flex-shrink-0 pl-2">
+                    <div className="text-sm font-semibold text-zinc-100 font-mono whitespace-nowrap">
                       ${order.product_price.toFixed(2)}
                     </div>
                     <div className="text-[10px] text-zinc-500">{order.currency}</div>
@@ -154,15 +154,15 @@ export default function PendingApprovals({
 
                 {/* Reason Banner */}
                 <div className="bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 text-xs text-amber-200/90 space-y-1">
-                  <div className="flex items-center justify-between text-[10px] font-mono text-amber-400">
-                    <span className="font-semibold">Review required</span>
-                    <span>Rule: {order.rule_fired}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[10px] font-mono text-amber-400">
+                    <span className="font-semibold whitespace-nowrap">Review required</span>
+                    <span className="truncate max-w-[200px]" title={`Rule: ${order.rule_fired}`}>Rule: {order.rule_fired}</span>
                   </div>
-                  <p className="text-xs leading-normal text-zinc-300">{order.decision_reason}</p>
+                  <p className="text-xs leading-normal text-zinc-300 break-words">{order.decision_reason}</p>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-2 pt-1">
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
                   {!checkoutSession ? (
                     <>
                       <button
@@ -170,7 +170,7 @@ export default function PendingApprovals({
                         disabled={isProcessing}
                         className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        <XCircle className="h-3.5 w-3.5" />
+                        <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
                         {isProcessing ? "Rejecting..." : "Reject"}
                       </button>
                       <button
@@ -178,7 +178,7 @@ export default function PendingApprovals({
                         disabled={isProcessing}
                         className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
                         {isProcessing ? "Creating order..." : `Approve & Pay ($${order.product_price.toFixed(2)})`}
                       </button>
                     </>
@@ -187,9 +187,9 @@ export default function PendingApprovals({
                       href={checkoutSession}
                       className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5"
                     >
-                      <CreditCard className="h-3.5 w-3.5" />
-                      Complete sandbox checkout
-                      <ExternalLink className="h-3.5 w-3.5" />
+                      <CreditCard className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>Complete sandbox checkout</span>
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                     </a>
                   )}
                 </div>

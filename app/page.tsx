@@ -150,36 +150,36 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-6 py-6 w-full flex-1 space-y-6">
         
         {/* Active Policy Status Bar */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="space-y-0.5">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-0.5 min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5 whitespace-nowrap">
+                <ShieldCheck className="h-4 w-4 text-emerald-400 flex-shrink-0" />
                 Active spending policy
               </span>
-              <span className="text-[9px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+              <span className="text-[9px] font-mono bg-emerald-950/40 text-emerald-400 border border-emerald-800/60 px-1.5 py-0.5 rounded whitespace-nowrap">
                 Deterministic
               </span>
             </div>
-            <p className="text-xs text-zinc-400 font-mono text-[11px]">
+            <p className="text-xs text-zinc-400 font-mono text-[11px] break-words line-clamp-2" title={rawRules}>
               "{rawRules || "Max $150/month, electronics and books only, ask me before anything over $40, hard limit $100 per item."}"
             </p>
           </div>
 
           {policy && (
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
-              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-zinc-300">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono flex-shrink-0">
+              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-zinc-300 whitespace-nowrap">
                 Cap: <strong className="text-zinc-100 font-medium">${policy.maxMonthlyBudget}</strong>
               </span>
-              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-amber-400">
+              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-amber-400 whitespace-nowrap">
                 Ask &gt; <strong>${policy.requireApprovalAbove}</strong>
               </span>
-              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-red-400">
+              <span className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-red-400 whitespace-nowrap">
                 Ceiling: <strong>${policy.maxItemPrice}</strong>
               </span>
               <button
                 onClick={() => setActiveTab("policy")}
-                className="text-[11px] text-blue-400 hover:text-blue-300 font-sans font-medium underline underline-offset-2 ml-1"
+                className="text-[11px] text-blue-400 hover:text-blue-300 font-sans font-medium underline underline-offset-2 ml-1 whitespace-nowrap"
               >
                 Edit policy
               </button>
@@ -255,42 +255,42 @@ export default function HomePage() {
                   No orders recorded yet. Use the Chat tab to start purchases.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                <div className="overflow-x-auto -mx-5 px-5">
+                  <table className="w-full text-left text-xs min-w-[700px]">
                     <thead>
-                      <tr className="border-b border-zinc-800 text-zinc-400 font-mono uppercase text-[10px]">
-                        <th className="pb-2.5 font-medium">Item</th>
-                        <th className="pb-2.5 font-medium">Merchant</th>
-                        <th className="pb-2.5 font-medium">Price</th>
-                        <th className="pb-2.5 font-medium">Decision</th>
-                        <th className="pb-2.5 font-medium">Status</th>
-                        <th className="pb-2.5 font-medium">Capture ID</th>
-                        <th className="pb-2.5 font-medium text-right">Time</th>
+                      <tr className="border-b border-zinc-800 text-zinc-400 font-mono uppercase text-[10px] whitespace-nowrap">
+                        <th className="pb-2.5 font-medium min-w-[200px]">Item</th>
+                        <th className="pb-2.5 font-medium min-w-[100px]">Merchant</th>
+                        <th className="pb-2.5 font-medium min-w-[70px]">Price</th>
+                        <th className="pb-2.5 font-medium min-w-[120px]">Decision</th>
+                        <th className="pb-2.5 font-medium min-w-[110px]">Status</th>
+                        <th className="pb-2.5 font-medium min-w-[130px]">Capture ID</th>
+                        <th className="pb-2.5 font-medium text-right min-w-[70px]">Time</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800">
                       {recentOrders.map((order) => (
                         <tr key={order.id} className="hover:bg-zinc-950 transition">
                           <td className="py-2.5 pr-3">
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
                               <ProductIcon category={order.category} title={order.product_title} size="sm" />
-                              <span className="font-medium text-zinc-100 max-w-[200px] truncate" title={order.product_title}>
+                              <span className="font-medium text-zinc-100 max-w-[220px] truncate" title={order.product_title}>
                                 {order.product_title}
                               </span>
                               {order.product_id?.startsWith("prod_") && (
-                                <span className="text-[9px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700 px-1 py-0.2 rounded">
+                                <span className="text-[9px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700 px-1 py-0.2 rounded whitespace-nowrap flex-shrink-0">
                                   Sample
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="py-2.5 text-zinc-400 font-mono text-[11px]">
+                          <td className="py-2.5 text-zinc-400 font-mono text-[11px] whitespace-nowrap">
                             {order.merchant}
                           </td>
-                          <td className="py-2.5 font-medium font-mono text-zinc-100">
+                          <td className="py-2.5 font-medium font-mono text-zinc-100 whitespace-nowrap">
                             ${order.product_price.toFixed(2)}
                           </td>
-                          <td className="py-2.5">
+                          <td className="py-2.5 whitespace-nowrap">
                             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                               order.decision === "AUTO_APPROVE"
                                 ? "bg-emerald-950/40 text-emerald-400 border-emerald-800/60"
@@ -301,7 +301,7 @@ export default function HomePage() {
                               {order.decision}
                             </span>
                           </td>
-                          <td className="py-2.5 font-mono text-[11px]">
+                          <td className="py-2.5 font-mono text-[11px] whitespace-nowrap">
                             <span className={`px-1.5 py-0.5 rounded ${
                               order.status === "CAPTURED"
                                 ? "bg-emerald-950/40 text-emerald-400"
@@ -312,10 +312,10 @@ export default function HomePage() {
                               {order.status}
                             </span>
                           </td>
-                          <td className="py-2.5 font-mono text-[11px] text-zinc-400 max-w-[140px] truncate">
+                          <td className="py-2.5 font-mono text-[11px] text-zinc-400 max-w-[140px] truncate whitespace-nowrap" title={order.paypal_capture_id || order.paypal_order_id || ""}>
                             {order.paypal_capture_id || (order.paypal_order_id ? `Order: ${order.paypal_order_id}` : "—")}
                           </td>
-                          <td className="py-2.5 text-zinc-500 font-mono text-[10px] text-right">
+                          <td className="py-2.5 text-zinc-500 font-mono text-[10px] text-right whitespace-nowrap">
                             {new Date(order.created_at).toLocaleTimeString()}
                           </td>
                         </tr>

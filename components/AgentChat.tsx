@@ -171,9 +171,9 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
                 </div>
               )}
 
-              <div className={`max-w-[85%] space-y-3 ${isUser ? "items-end" : "items-start"}`}>
+              <div className={`max-w-[85%] space-y-3 min-w-0 ${isUser ? "items-end" : "items-start"}`}>
                 <div
-                  className={`p-3.5 rounded-lg text-xs leading-relaxed ${
+                  className={`p-3.5 rounded-lg text-xs leading-relaxed break-words [overflow-wrap:anywhere] ${
                     isUser
                       ? "bg-blue-600 text-white rounded-tr-none"
                       : "bg-zinc-950 text-zinc-200 border border-zinc-800 rounded-tl-none"
@@ -183,9 +183,10 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
 
                   {/* Tool Invocations Badge */}
                   {m.toolsUsed && m.toolsUsed.length > 0 && (
-                    <div className="flex items-center gap-1.5 pt-2 mt-2 border-t border-zinc-800 text-[10px] text-zinc-400 font-mono">
-                      <Terminal className="h-3 w-3 text-zinc-400" />
-                      Tools: {m.toolsUsed.map((t) => (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2 mt-2 border-t border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                      <Terminal className="h-3 w-3 text-zinc-400 flex-shrink-0" />
+                      <span>Tools:</span>
+                      {m.toolsUsed.map((t) => (
                         <span key={t} className="bg-zinc-800 px-1 py-0.5 rounded text-zinc-300">
                           {t}()
                         </span>
