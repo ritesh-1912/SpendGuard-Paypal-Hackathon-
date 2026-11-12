@@ -11,6 +11,9 @@ export interface AgentChatResult {
   proposal: PurchaseProposal | null;
   evaluation: EvaluationResult | null;
   toolsUsed: string[];
+  engine: "gemini" | "heuristic-fallback";
+  model?: string;
+  fallbackNotice?: string;
 }
 
 export async function runShoppingAgentLoop(
@@ -29,13 +32,20 @@ export async function runShoppingAgentLoop(
   const apiKey = process.env.GEMINI_API_KEY;
   const toolsUsed: string[] = [];
   let foundProducts: CatalogProduct[] = [];
+  let fallbackReason: string | null = null;
 
   if (apiKey && apiKey.trim() !== "") {
-    try {
-      const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const candidateModels = Array.from(
+      new Set([process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"].filter(Boolean))
+    ) as string[];
 
-      const systemInstruction = `You are the SpendGuard shopping agent.
+    let lastError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+        const systemInstruction = `You are the SpendGuard shopping agent.
 Help users find products matching their request.
 Rules:
 1. Search products using the searchProducts tool.
@@ -44,135 +54,147 @@ Rules:
 4. When recommending a product, state its exact title, price in USD, and merchant.
 5. All proposals are intercepted and evaluated by deterministic code before checkout.`;
 
-      const contents: any[] = [
-        ...history.map((h) => ({
-          role: h.role,
-          parts: [{ text: h.content }],
-        })),
-        {
-          role: "user",
-          parts: [{ text: userMessage }],
-        },
-      ];
+        const contents: any[] = [
+          ...history.map((h) => ({
+            role: h.role,
+            parts: [{ text: h.content }],
+          })),
+          {
+            role: "user",
+            parts: [{ text: userMessage }],
+          },
+        ];
 
-      const response = await ai.models.generateContent({
-        model,
-        contents,
-        config: {
-          systemInstruction,
-          tools: agentTools,
-          temperature: 0.2,
-        },
-      });
-
-      const functionCalls = response.functionCalls;
-
-      if (functionCalls && functionCalls.length > 0) {
-        const functionResponses: any[] = [];
-
-        for (const call of functionCalls) {
-          if (call.name) {
-            toolsUsed.push(call.name);
-          }
-
-          if (call.name === "searchProducts") {
-            const args = (call.args || {}) as any;
-            const results = await searchProducts(args.query || userMessage, args.maxPrice);
-            foundProducts = results;
-            functionResponses.push({
-              name: "searchProducts",
-              response: { products: results.slice(0, 5) },
-            });
-          } else if (call.name === "getBudgetSummary") {
-            functionResponses.push({
-              name: "getBudgetSummary",
-              response: {
-                monthlyBudget: activePolicy.maxMonthlyBudget,
-                totalSpent: ledger.total_spent,
-                remainingBudget: Math.max(0, activePolicy.maxMonthlyBudget - ledger.total_spent),
-                requireApprovalAbove: activePolicy.requireApprovalAbove,
-                allowedCategories: activePolicy.allowedCategories,
-              },
-            });
-          }
-        }
-
-        const secondTurn = await ai.models.generateContent({
+        const response = await ai.models.generateContent({
           model,
-          contents: [
-            ...contents,
-            {
-              role: "model",
-              parts: functionCalls.map((fc) => ({ functionCall: fc })),
-            },
-            {
-              role: "tool",
-              parts: functionResponses.map((fr) => ({
-                functionResponse: fr,
-              })),
-            },
-          ],
+          contents,
           config: {
             systemInstruction,
+            tools: agentTools,
             temperature: 0.2,
           },
         });
 
-        const replyText = secondTurn.text || "Found products matching your request.";
-        const candidate = selectCandidateProduct(foundProducts, userMessage);
+        const functionCalls = response.functionCalls;
 
-        if (candidate) {
-          const proposal: PurchaseProposal = {
-            productId: candidate.id,
-            productTitle: candidate.title,
-            price: candidate.price,
-            currency: candidate.currency,
-            category: candidate.category,
-            merchantDomain: candidate.merchant,
-            productUrl: candidate.url,
-            imageUrl: candidate.imageUrl,
-            isSample: candidate.isSample,
-          };
+        if (functionCalls && functionCalls.length > 0) {
+          const functionResponses: any[] = [];
 
-          const evaluation = evaluatePurchaseProposal(proposal, activePolicy, {
-            currentMonthSpent: ledger.total_spent,
-            recentOrders,
+          for (const call of functionCalls) {
+            if (call.name) {
+              toolsUsed.push(call.name);
+            }
+
+            if (call.name === "searchProducts") {
+              const args = (call.args || {}) as any;
+              const results = await searchProducts(args.query || userMessage, args.maxPrice);
+              foundProducts = results;
+              functionResponses.push({
+                name: "searchProducts",
+                response: { products: results.slice(0, 5) },
+              });
+            } else if (call.name === "getBudgetSummary") {
+              functionResponses.push({
+                name: "getBudgetSummary",
+                response: {
+                  monthlyBudget: activePolicy.maxMonthlyBudget,
+                  totalSpent: ledger.total_spent,
+                  remainingBudget: Math.max(0, activePolicy.maxMonthlyBudget - ledger.total_spent),
+                  requireApprovalAbove: activePolicy.requireApprovalAbove,
+                  allowedCategories: activePolicy.allowedCategories,
+                },
+              });
+            }
+          }
+
+          const secondTurn = await ai.models.generateContent({
+            model,
+            contents: [
+              ...contents,
+              {
+                role: "model",
+                parts: functionCalls.map((fc) => ({ functionCall: fc })),
+              },
+              {
+                role: "tool",
+                parts: functionResponses.map((fr) => ({
+                  functionResponse: fr,
+                })),
+              },
+            ],
+            config: {
+              systemInstruction,
+              temperature: 0.2,
+            },
           });
 
-          logAuditEvent(
-            "AGENT_PROPOSAL",
-            `Proposed '${proposal.productTitle}' ($${proposal.price.toFixed(2)}) -> ${evaluation.decision}`,
-            { userMessage, proposal, evaluation, toolsUsed },
-            evaluation.decision === "BLOCKED" ? "WARN" : "INFO"
-          );
+          const replyText = secondTurn.text || "Found products matching your request.";
+          const candidate = selectCandidateProduct(foundProducts, userMessage);
+
+          if (candidate) {
+            const proposal: PurchaseProposal = {
+              productId: candidate.id,
+              productTitle: candidate.title,
+              price: candidate.price,
+              currency: candidate.currency,
+              category: candidate.category,
+              merchantDomain: candidate.merchant,
+              productUrl: candidate.url,
+              imageUrl: candidate.imageUrl,
+              isSample: candidate.isSample,
+            };
+
+            const evaluation = evaluatePurchaseProposal(proposal, activePolicy, {
+              currentMonthSpent: ledger.total_spent,
+              recentOrders,
+            });
+
+            logAuditEvent(
+              "AGENT_PROPOSAL",
+              `Proposed '${proposal.productTitle}' ($${proposal.price.toFixed(2)}) via Gemini (${model}) -> ${evaluation.decision}`,
+              { userMessage, proposal, evaluation, toolsUsed, engine: "gemini", model },
+              evaluation.decision === "BLOCKED" ? "WARN" : "INFO"
+            );
+
+            return {
+              reply: replyText,
+              proposal,
+              evaluation,
+              toolsUsed,
+              engine: "gemini",
+              model,
+            };
+          }
 
           return {
             reply: replyText,
-            proposal,
-            evaluation,
+            proposal: null,
+            evaluation: null,
             toolsUsed,
+            engine: "gemini",
+            model,
           };
         }
 
         return {
-          reply: replyText,
+          reply: response.text || "Tell me what product you are looking for.",
           proposal: null,
           evaluation: null,
           toolsUsed,
+          engine: "gemini",
+          model,
         };
-      }
-
-      return {
-        reply: response.text || "Tell me what product you are looking for.",
-        proposal: null,
-        evaluation: null,
-        toolsUsed,
-      };
-    } catch (err: any) {
-      if (err.message?.includes("Channel3")) {
-        throw err;
+      } catch (err: any) {
+        if (err.message?.includes("Channel3")) {
+          throw err;
+        }
+        lastError = err;
       }
     }
+
+    fallbackReason = lastError?.message || "Gemini model error";
+  } else {
+    fallbackReason = "GEMINI_API_KEY is not configured";
   }
 
   toolsUsed.push("searchProducts");
@@ -185,6 +207,8 @@ Rules:
       proposal: null,
       evaluation: null,
       toolsUsed,
+      engine: "heuristic-fallback",
+      fallbackNotice: fallbackReason || undefined,
     };
   }
 
@@ -209,9 +233,9 @@ Rules:
 
   logAuditEvent(
     "AGENT_PROPOSAL",
-    `Proposed '${proposal.productTitle}' ($${proposal.price.toFixed(2)}) -> ${evaluation.decision}`,
-    { userMessage, proposal, evaluation, toolsUsed },
-    evaluation.decision === "BLOCKED" ? "WARN" : "INFO"
+    `Proposed '${proposal.productTitle}' ($${proposal.price.toFixed(2)}) via fallback (${fallbackReason || "local"}) -> ${evaluation.decision}`,
+    { userMessage, proposal, evaluation, toolsUsed, engine: "heuristic-fallback", fallbackNotice: fallbackReason },
+    "WARN"
   );
 
   return {
@@ -219,6 +243,8 @@ Rules:
     proposal,
     evaluation,
     toolsUsed,
+    engine: "heuristic-fallback",
+    fallbackNotice: fallbackReason || undefined,
   };
 }
 

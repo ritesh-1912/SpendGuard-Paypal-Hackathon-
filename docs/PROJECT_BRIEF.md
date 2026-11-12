@@ -3,7 +3,7 @@
 > **Source of Truth** for every task in this repository.
 
 **PROJECT:** "SpendGuard" (working name), for the PayPal AI Hackathon (Devpost). Hard deadline in 5 days, so scope discipline matters.  
-**Repository:** https://github.com/ritesh-1912/SpendGuard-Paypal-Hackathon-.git
+**Repository:** https://github.com/ritesh-1912/SpendGuard-Paypal-Hackathon.git
 
 ---
 

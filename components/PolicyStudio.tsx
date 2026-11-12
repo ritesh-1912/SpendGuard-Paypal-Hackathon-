@@ -29,6 +29,9 @@ export default function PolicyStudio({
   );
   const [isParsing, setIsParsing] = useState(false);
   const [parsedPolicy, setParsedPolicy] = useState<Policy | null>(currentPolicy);
+  const [parserUsed, setParserUsed] = useState<"gemini" | "rules-fallback" | null>(null);
+  const [parserModel, setParserModel] = useState<string | null>(null);
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const [isActivating, setIsActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -51,6 +54,9 @@ export default function PolicyStudio({
       }
 
       setParsedPolicy(data.parsedPolicy);
+      setParserUsed(data.parser || null);
+      setParserModel(data.model || null);
+      setFallbackNotice(data.fallbackNotice || null);
     } catch (err: any) {
       setError(err.message || "Failed to parse rules");
     } finally {
@@ -186,15 +192,37 @@ export default function PolicyStudio({
         {/* Right Side: Parsed Structured JSON Viewer */}
         <div className="space-y-3 flex flex-col justify-between">
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
                 <Code2 className="h-3.5 w-3.5 text-zinc-400" />
                 2. Parsed JSON policy
               </label>
-              <span className="text-[10px] font-mono text-zinc-500">
-                Deterministic
-              </span>
+              <div className="flex items-center gap-1.5">
+                {parserUsed === "gemini" && (
+                  <span className="text-[10px] font-mono bg-blue-950/50 text-blue-400 border border-blue-800/60 px-1.5 py-0.5 rounded">
+                    Parser: Gemini ({parserModel || "2.5 Flash"})
+                  </span>
+                )}
+                {parserUsed === "rules-fallback" && (
+                  <span className="text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700 px-1.5 py-0.5 rounded">
+                    Parser: Rules fallback
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-zinc-500">
+                  Deterministic
+                </span>
+              </div>
             </div>
+
+            {fallbackNotice && (
+              <div className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-800/50 text-amber-300 text-xs flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-medium text-[11px]">Notice: Fallback rules parser used</p>
+                  <p className="text-[10px] text-amber-200/80 leading-normal">{fallbackNotice}</p>
+                </div>
+              </div>
+            )}
 
             <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
               {parsedPolicy ? (

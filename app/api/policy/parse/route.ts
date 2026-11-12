@@ -11,18 +11,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Spending rules text is required" }, { status: 400 });
     }
 
-    const parsedPolicy = await parseSpendingRulesWithGemini(rawRules);
+    const result = await parseSpendingRulesWithGemini(rawRules);
+
+    const isGemini = result.parser === "gemini";
+    const logSummary = isGemini
+      ? `Parsed spending rules with Gemini structured output (${result.model || "gemini"})`
+      : `Parsed spending rules using fallback parser: ${result.fallbackNotice || "Gemini unavailable"}`;
 
     logAuditEvent(
       "RULE_PARSED",
-      "Parsed spending rules with Gemini structured output",
-      { rawRules, parsedPolicy }
+      logSummary,
+      {
+        rawRules,
+        parsedPolicy: result.policy,
+        parser: result.parser,
+        model: result.model,
+        fallbackNotice: result.fallbackNotice,
+      },
+      isGemini ? "INFO" : "WARN"
     );
 
     return NextResponse.json({
       success: true,
       rawRules,
-      parsedPolicy,
+      parsedPolicy: result.policy,
+      parser: result.parser,
+      model: result.model,
+      fallbackNotice: result.fallbackNotice,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -57,15 +57,28 @@ export const policySchema = {
   ],
 };
 
-export async function parseSpendingRulesWithGemini(rawRules: string): Promise<Policy> {
+export interface PolicyParseResult {
+  policy: Policy;
+  parser: "gemini" | "rules-fallback";
+  model?: string;
+  fallbackNotice?: string;
+}
+
+export async function parseSpendingRulesWithGemini(rawRules: string): Promise<PolicyParseResult> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (apiKey && apiKey.trim() !== "") {
-    try {
-      const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const candidateModels = Array.from(
+      new Set([process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"].filter(Boolean))
+    ) as string[];
 
-      const prompt = `Convert these spending rules into a structured policy JSON object adhering strictly to the schema.
+    let lastError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+
+        const prompt = `Convert these spending rules into a structured policy JSON object adhering strictly to the schema.
 Default values if unspecified:
 - currency: "USD"
 - version: "1.0"
@@ -75,26 +88,42 @@ Default values if unspecified:
 Rules:
 "${rawRules}"`;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: policySchema,
-          temperature: 0.1,
-        },
-      });
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: policySchema,
+            temperature: 0.1,
+          },
+        });
 
-      const responseText = response.text?.trim() || "";
-      const parsed = JSON.parse(responseText) as Policy;
+        const responseText = response.text?.trim() || "";
+        const parsed = JSON.parse(responseText) as Policy;
 
-      return sanitizePolicy(parsed);
-    } catch {
-      // Fall back to heuristic rule parser if external call fails
+        return {
+          policy: sanitizePolicy(parsed),
+          parser: "gemini",
+          model,
+        };
+      } catch (err: any) {
+        lastError = err;
+      }
     }
+
+    const errorMsg = lastError?.message || "Gemini model execution failed";
+    return {
+      policy: fallbackRuleParser(rawRules),
+      parser: "rules-fallback",
+      fallbackNotice: `Gemini API error: ${errorMsg}`,
+    };
   }
 
-  return fallbackRuleParser(rawRules);
+  return {
+    policy: fallbackRuleParser(rawRules),
+    parser: "rules-fallback",
+    fallbackNotice: "GEMINI_API_KEY is not configured",
+  };
 }
 
 function sanitizePolicy(policy: Policy): Policy {

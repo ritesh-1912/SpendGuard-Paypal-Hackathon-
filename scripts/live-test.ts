@@ -192,9 +192,85 @@ async function runLiveTestSuite() {
   }
 
   // ============================================================================
-  // Step 3: Auto-Approved Purchase & Sandbox Checkout
+  // Step 3: Gemini Structured Policy Parser
   // ============================================================================
-  logStep(3, "Auto-Approved Purchase Flow (Rule: UNDER_THRESHOLD)");
+  logStep(3, "Gemini Structured Policy Parser (/api/policy/parse)");
+  try {
+    const parseRes = await fetch(`${targetUrl}/api/policy/parse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rawRules: "Monthly budget $180, electronics and books only, ask over $45, hard ceiling $90",
+      }),
+    });
+    const parseData = await parseRes.json();
+
+    if (!parseRes.ok || !parseData.success) {
+      logFail(`Policy parser failed: ${JSON.stringify(parseData)}`);
+      results.push({ step: "Gemini Policy Parser", passed: false, details: parseData.error || "Failed" });
+    } else {
+      if (parseData.parser === "gemini") {
+        logSuccess(`Parsed rules using Gemini (${parseData.model || "gemini-2.5-flash"}).`);
+      } else {
+        logWarn(`Parsed rules using fallback parser: ${parseData.fallbackNotice || "Gemini unavailable"}`);
+      }
+      logInfo(`Parsed output: Budget=$${parseData.parsedPolicy?.maxMonthlyBudget}, Threshold=$${parseData.parsedPolicy?.requireApprovalAbove}, Ceiling=$${parseData.parsedPolicy?.maxItemPrice}`);
+
+      results.push({
+        step: "Gemini Policy Parser",
+        passed: parseData.parser === "gemini",
+        details: parseData.parser === "gemini" ? `Gemini (${parseData.model || "flash"})` : `Fallback: ${parseData.fallbackNotice || "local"}`,
+      });
+    }
+  } catch (err: any) {
+    logFail(`Policy parser test error: ${err.message}`);
+    results.push({ step: "Gemini Policy Parser", passed: false, details: err.message });
+  }
+
+  // ============================================================================
+  // Step 4: Gemini Shopping Agent Loop
+  // ============================================================================
+  logStep(4, "Gemini Shopping Agent Loop with Tool Calling (/api/agent/chat)");
+  try {
+    const chatRes = await fetch(`${targetUrl}/api/agent/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Find an ergonomic wireless mouse under $35",
+        history: [],
+      }),
+    });
+    const chatData = await chatRes.json();
+
+    if (!chatRes.ok || !chatData.success) {
+      logFail(`Agent chat failed: ${JSON.stringify(chatData)}`);
+      results.push({ step: "Gemini Shopping Agent", passed: false, details: chatData.error || "Failed" });
+    } else {
+      if (chatData.engine === "gemini") {
+        logSuccess(`Agent executed tool-calling loop using Gemini (${chatData.model || "gemini-2.5-flash"}).`);
+      } else {
+        logWarn(`Agent used heuristic fallback: ${chatData.fallbackNotice || "Gemini unavailable"}`);
+      }
+      logInfo(`Agent Reply: "${chatData.reply}"`);
+      if (chatData.proposal) {
+        logInfo(`Candidate proposed: "${chatData.proposal.productTitle}" ($${chatData.proposal.price.toFixed(2)})`);
+      }
+
+      results.push({
+        step: "Gemini Shopping Agent",
+        passed: chatData.engine === "gemini",
+        details: chatData.engine === "gemini" ? `Gemini (${chatData.model || "flash"})` : `Fallback: ${chatData.fallbackNotice || "local"}`,
+      });
+    }
+  } catch (err: any) {
+    logFail(`Agent chat test error: ${err.message}`);
+    results.push({ step: "Gemini Shopping Agent", passed: false, details: err.message });
+  }
+
+  // ============================================================================
+  // Step 5: Auto-Approved Purchase & Sandbox Checkout
+  // ============================================================================
+  logStep(5, "Auto-Approved Purchase Flow (Rule: UNDER_THRESHOLD)");
   let autoApprovedOrder: any = null;
   const autoApproveProposal = {
     productId: underThresholdProduct?.id || "prod_auto_001",
@@ -296,9 +372,9 @@ async function runLiveTestSuite() {
   }
 
   // ============================================================================
-  // Step 4: Purchase Needing Approval (Escalation & Manager Approval)
+  // Step 6: Purchase Needing Approval (Escalation & Manager Approval)
   // ============================================================================
-  logStep(4, "Purchase Needing Approval Flow (Rule: EXCEEDS_THRESHOLD)");
+  logStep(6, "Purchase Needing Approval Flow (Rule: EXCEEDS_THRESHOLD)");
   const needsApprovalProposal = {
     productId: overThresholdProduct?.id || "prod_needs_001",
     productTitle: overThresholdProduct?.title || "Single Monitor Desk Mount Arm",
@@ -372,9 +448,9 @@ async function runLiveTestSuite() {
   }
 
   // ============================================================================
-  // Step 5: Blocked Purchase (Deterministic Enforcement)
+  // Step 7: Blocked Purchase (Deterministic Enforcement)
   // ============================================================================
-  logStep(5, "Blocked Purchase Flow (Prohibited Category / Price Ceiling)");
+  logStep(7, "Blocked Purchase Flow (Prohibited Category / Price Ceiling)");
   const blockedProposal = {
     productId: "prod_blocked_apparel",
     productTitle: "Designer Leather Jacket",
@@ -424,9 +500,9 @@ async function runLiveTestSuite() {
   }
 
   // ============================================================================
-  // Step 6: Audit Log Completeness Verification
+  // Step 8: Audit Log Completeness Verification
   // ============================================================================
-  logStep(6, "Audit Log Completeness & Deterministic Tracing (/api/dashboard/metrics)");
+  logStep(8, "Audit Log Completeness & Deterministic Tracing (/api/dashboard/metrics)");
   try {
     const metricsRes = await fetch(`${targetUrl}/api/dashboard/metrics`, { method: "GET" });
     const metricsData = await metricsRes.json();
@@ -469,9 +545,9 @@ async function runLiveTestSuite() {
   }
 
   // ============================================================================
-  // Step 7: PayPal Sandbox Business Account Verification Guide
+  // Step 9: PayPal Sandbox Business Account Verification Guide
   // ============================================================================
-  logStep(7, "PayPal Sandbox Business Account Verification");
+  logStep(9, "PayPal Sandbox Business Account Verification");
   console.log(`
 To verify the captured funds in your PayPal Sandbox Business Account:
 1. Log in to the PayPal Developer Portal:

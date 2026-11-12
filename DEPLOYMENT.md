@@ -87,7 +87,7 @@ After your service is deployed and has a public URL (e.g. `https://spendguard.on
 ### Step 3: Select Webhook Events
 Check the boxes for the following events:
 - **Payment capture completed** (`PAYMENT.CAPTURE.COMPLETED`)
-- **Payment capture refunded** (`PAYMENT.CAPTURE.REFUNDED`)
+- **Payment capture denied** (`PAYMENT.CAPTURE.DENIED`)
 - **Checkout order approved** (`CHECKOUT.ORDER.APPROVED`)
 
 ### Step 4: Save and Copy Webhook ID

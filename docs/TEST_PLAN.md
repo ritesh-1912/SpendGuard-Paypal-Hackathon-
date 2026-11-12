@@ -137,16 +137,4 @@ This walkthrough tests the complete working pipeline, demonstrating compliance w
    - **Zero** PayPal orders are created.
    - Audit log records `POLICY_EVALUATED` (Severity: `WARN`, Decision: `BLOCKED`).
 
----
 
-### Step 5: (Optional) Undo / Refund Flow
-1. Go to `/dashboard`.
-2. Locate the captured $19.99 USB-C Cable in the Recent Orders table.
-3. Click the **"Refund / Undo"** button.
-4. Confirm modal.
-5. **Verify:**
-   - Backend calls PayPal Payments v2 Refund endpoint (`POST /v2/payments/captures/{id}/refund`).
-   - PayPal responds with refund confirmation.
-   - SpendGuard immediately restores the $19.99 back to the monthly budget ledger (Total spent drops back to $64.99).
-   - Audit log appends `PAYPAL_REFUNDED`.
-   - Audit log appends `PAYPAL_REFUNDED`.

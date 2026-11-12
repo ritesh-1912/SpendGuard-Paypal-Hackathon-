@@ -19,6 +19,8 @@ interface Message {
   evaluation?: EvaluationResult | null;
   paypalApproveUrl?: string | null;
   paypalOrderId?: string | null;
+  engine?: "gemini" | "heuristic-fallback";
+  model?: string;
 }
 
 interface Props {
@@ -79,6 +81,8 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
         toolsUsed: data.toolsUsed,
         proposal: data.proposal,
         evaluation: data.evaluation,
+        engine: data.engine,
+        model: data.model,
       };
 
       setMessages((prev) => [...prev, agentMsg]);
@@ -181,16 +185,31 @@ export default function AgentChat({ onOrderAction, className = "" }: Props) {
                 >
                   <p className="whitespace-pre-wrap">{m.text}</p>
 
-                  {/* Tool Invocations Badge */}
-                  {m.toolsUsed && m.toolsUsed.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-2 mt-2 border-t border-zinc-800 text-[10px] text-zinc-400 font-mono">
-                      <Terminal className="h-3 w-3 text-zinc-400 flex-shrink-0" />
-                      <span>Tools:</span>
-                      {m.toolsUsed.map((t) => (
-                        <span key={t} className="bg-zinc-800 px-1 py-0.5 rounded text-zinc-300">
-                          {t}()
+                  {/* Tool & Engine Invocations Badge */}
+                  {(m.toolsUsed?.length || m.engine) && (
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 pt-2 mt-2 border-t border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {m.toolsUsed && m.toolsUsed.length > 0 && (
+                          <>
+                            <Terminal className="h-3 w-3 text-zinc-400 flex-shrink-0" />
+                            <span>Tools:</span>
+                            {m.toolsUsed.map((t) => (
+                              <span key={t} className="bg-zinc-800 px-1 py-0.5 rounded text-zinc-300">
+                                {t}()
+                              </span>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                      {m.engine && (
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] ${
+                          m.engine === "gemini"
+                            ? "bg-blue-950/50 text-blue-400 border border-blue-800/60"
+                            : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                        }`}>
+                          {m.engine === "gemini" ? `Gemini (${m.model || "2.5 Flash"})` : "Rules fallback"}
                         </span>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
