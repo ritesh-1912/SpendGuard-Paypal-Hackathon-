@@ -328,7 +328,9 @@ async function runLiveTestSuite() {
         console.log("  \x1b[1mACTION REQUIRED FOR COMPLETE CAPTURE TEST:\x1b[0m");
         console.log(`  1. Open the Sandbox approval URL in your browser:`);
         console.log(`     \x1b[34m${orderData.approveUrl}\x1b[0m`);
-        console.log(`  2. Log in with your PayPal Sandbox Personal/Buyer account.`);
+        console.log(`  2. Log in with the PayPal Sandbox Personal/Buyer account:`);
+        console.log(`     Email:    \x1b[32msb-qxlok53890289@personal.example.com\x1b[0m`);
+        console.log(`     Password: \x1b[32mJ)<wH7p#\x1b[0m`);
         console.log(`  3. Click "Complete Purchase" or "Agree and Continue".`);
         console.log(`  4. You will be redirected back to SpendGuard to capture the payment.`);
         console.log("-".repeat(70));

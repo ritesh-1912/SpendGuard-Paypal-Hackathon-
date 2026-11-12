@@ -79,8 +79,10 @@ To approve transactions during the live walkthrough, use the following PayPal sa
 
 | Field | Value |
 | :--- | :--- |
-| **Email** | |
-| **Password** | |
+| **Email** | `sb-qxlok53890289@personal.example.com` |
+| **Password** | `J)<wH7p#` |
+| **Account Type** | Personal (Sandbox Buyer) |
+| **Sandbox Login** | [https://sandbox.paypal.com](https://sandbox.paypal.com) |
 
 > [!NOTE]
 > This is a PayPal Sandbox personal test account created in the PayPal Developer Dashboard for evaluation. It is not a real financial account and transfers no real currency.
@@ -182,7 +184,7 @@ In this mode, product queries return curated sample items clearly labeled with a
    - Reason: Within auto-approval threshold ($40.00) and monthly budget ($150.00).
 5. Click **Create PayPal sandbox order**.
 6. Click **Pay in PayPal sandbox** to open the PayPal sandbox checkout flow.
-7. Log in with your Sandbox Buyer account and approve the payment.
+7. Log in with the Sandbox Buyer account (`sb-qxlok53890289@personal.example.com` / `J)<wH7p#`) and approve the payment.
 8. PayPal redirects to `/checkout/success`, and the payment is captured.
 9. Verify the updated spend and remaining budget on the dashboard.
 
