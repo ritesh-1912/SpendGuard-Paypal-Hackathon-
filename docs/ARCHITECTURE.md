@@ -20,7 +20,7 @@ flowchart TD
     subgraph Server["SpendGuard Next.js Backend (Server-Side)"]
         API_Chat["/api/agent/chat"]
         API_Policy["/api/policy (GET/POST/parse)"]
-        API_Orders["/api/orders (create/approve/capture/refund)"]
+        API_Orders["/api/orders (create/approve/capture)"]
         API_Webhooks["/api/webhooks/paypal"]
         
         AgentLoop["Agent Coordinator\n(Orchestration Loop)"]
@@ -138,11 +138,12 @@ SpendGuard-Paypal-Hackathon/
 │       ├── agent/
 │       │   └── chat/route.ts        # POST: Shopping agent conversation loop
 │       ├── orders/
-│       │   ├── route.ts             # GET orders list, POST stage new order
 │       │   ├── [id]/
 │       │   │   ├── approve/route.ts # POST: Human approvals for NEEDS_APPROVAL items
-│       │   │   ├── capture/route.ts # POST: PayPal capture order execution
-│       │   │   └── refund/route.ts  # POST: PayPal refund execution & budget reversal
+│       │   │   └── reject/route.ts  # POST: Human rejection for staged orders
+│       │   ├── create/route.ts      # POST: PayPal order creation
+│       │   ├── capture/route.ts     # POST: PayPal capture order execution
+│       │   └── cancel/route.ts      # POST: Order cancellation tracking
 │       ├── webhooks/
 │       │   └── paypal/route.ts      # POST: PayPal webhook verification & state handler
 │       ├── audit/
@@ -278,9 +279,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 | `POST` | `/api/agent/chat` | `{ message: string, history: Message[] }` | `{ reply: string, proposal?: Proposal, evaluation?: EvaluationResult }` | Runs Gemini shopping loop, searches Channel3, proposes candidate, runs deterministic policy check. |
 | `GET` | `/api/orders` | Query params: `?status=PENDING_APPROVAL` | `{ orders: OrderRecord[] }` | Lists orders filtered by status (default all). |
 | `POST` | `/api/orders/[id]/approve` | *None* | `{ success: boolean, paypalOrderId: string, approveUrl: string }` | User approves a `NEEDS_APPROVAL` item. Backend creates PayPal order and returns sandbox approval link. |
-| `POST` | `/api/orders/[id]/capture` | *None* | `{ success: boolean, captureId: string, status: string }` | Executes `POST /v2/checkout/orders/{id}/capture` on PayPal after buyer confirmation; updates ledger. |
-| `POST` | `/api/orders/[id]/refund` | `{ reason?: string }` | `{ success: boolean, refundId: string }` | Executes `POST /v2/payments/captures/{id}/refund`, restores budget balance in ledger. |
-| `POST` | `/api/webhooks/paypal` | Raw PayPal Webhook JSON + Headers | `{ status: "received" }` | Validates PayPal signature; handles `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED`. |
+| `POST` | `/api/orders/capture` | `{ orderId: string, paypalOrderId: string }` | `{ success: boolean, captureId: string, status: string }` | Executes `POST /v2/checkout/orders/{id}/capture` on PayPal after buyer confirmation; updates ledger. |
+| `POST` | `/api/webhooks/paypal` | Raw PayPal Webhook JSON + Headers | `{ status: "received" }` | Validates PayPal signature; handles `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED` to sync ledger. |
 | `GET` | `/api/audit` | Query params: `?limit=50&offset=0` | `{ logs: AuditLogRecord[], total: number }` | Returns paginated audit trail. |
 | `GET` | `/api/dashboard/metrics` | *None* | `{ monthlyBudget: number, totalSpent: number, remaining: number, pendingCount: number, recentOrders: OrderRecord[] }` | Fast summary data for top metrics cards. |
 
