@@ -43,7 +43,7 @@ export async function runShoppingAgentLoop(
 
     for (const model of candidateModels) {
       try {
-        const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+        const ai = new GoogleGenAI({ apiKey: apiKey.trim(), apiVersion: "v1beta" });
 
         const systemInstruction = `You are the SpendGuard shopping agent.
 Help users find products matching their request.

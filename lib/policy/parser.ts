@@ -76,7 +76,7 @@ export async function parseSpendingRulesWithGemini(rawRules: string): Promise<Po
 
     for (const model of candidateModels) {
       try {
-        const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+        const ai = new GoogleGenAI({ apiKey: apiKey.trim(), apiVersion: "v1beta" });
 
         const prompt = `Convert these spending rules into a structured policy JSON object adhering strictly to the schema.
 Default values if unspecified:

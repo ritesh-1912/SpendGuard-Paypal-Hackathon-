@@ -19,8 +19,12 @@ export function getDb(): DatabaseSync {
   }
 
   const db = new DatabaseSync(resolvedPath);
-  db.exec("PRAGMA journal_mode = WAL;");
-  db.exec("PRAGMA busy_timeout = 5000;");
+  db.exec("PRAGMA busy_timeout = 10000;");
+  try {
+    db.exec("PRAGMA journal_mode = WAL;");
+  } catch {
+    // If journal_mode transition is locked, continue with existing journal mode
+  }
   db.exec("PRAGMA foreign_keys = ON;");
   
   initializeSchema(db);
